@@ -7,23 +7,22 @@
 
 #**********   User Defined Variables Below *********
 # Fortran 90 complier to use:
-COMPILER = ifort
+COMPILER = gfortran
 
 # Any desired options for the compiler (e.g. -O2, -g, etc.)
-USEROPTS =-fpp -u
-#USEROPTS = -O3 -fpp -mcmodel=medium -u
+USEROPTS = -O3 -cpp -mcmodel=medium
 
 # Location where fftw and netcdf (optional) libraries are installed
-LINKDIR = /mhome/damtp/atmos/jrt51/local/lib
+LINKDIR = /global/software/rocky-8.x86_64/modfiles/openmpi/4.1.6-kk4tbvr/gcc/11.4.0/fftw/2.1.5/lib
 
 # Location where the optional netcdf include file (netcdf.inc) is installed
-INCLUDEDIR = /usr/local/include
+INCLUDEDIR = /global/software/rocky-8.x86_64/modfiles/openmpi/4.1.6-kk4tbvr/gcc/11.4.0/fftw/2.1.5/include
 
 # Option to compile with MPI libraries
 PARALLEL = TRUE
 
 # Option to enable the LES model (loads the required variables into memory)
-LES = TRUE
+LES = FALSE
 
 # Option to complile with the HDF5 libarary
 HDF5 = TRUE
@@ -69,11 +68,11 @@ HEADER = header
 # Use the parameters to set flags
 ifeq ($(NETCDF),TRUE)
 COMPOPTS = $(USEROPTS) $(HDF5OPTS) -I$(INCLUDEDIR)
-LINKOPTS = -L$(LINKDIR) -lrfftw -lfftw -lnetcdf
+LINKOPTS = -L$(LINKDIR) -ldrfftw -ldfftw -lnetcdf
 NETCDF_o = netcdf.o
 else
 COMPOPTS = $(USEROPTS) $(HDF5OPTS)
-LINKOPTS = -L$(LINKDIR) -lrfftw -lfftw
+LINKOPTS = -L$(LINKDIR) -ldrfftw -ldfftw
 NETCDF_o = no_netcdf.o
 endif
 
