@@ -115,7 +115,7 @@ endif
 
 ifeq ($(PARALLEL),TRUE)
 mpi.o: $(MPIF) header 
-	$(COMPILER) $(COMPOPTS) -c -o mpi.o $(MPIF) 
+	$(COMPILER) $(COMPOPTS) -fallow-argument-mismatch -c -o mpi.o $(MPIF) 
 else
 mpi_serial.o: dummy_code/mpi_serial.f header grid_def
 	$(COMPILER) $(COMPOPTS) -c dummy_code/mpi_serial.f
