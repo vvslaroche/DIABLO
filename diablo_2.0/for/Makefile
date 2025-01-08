@@ -10,10 +10,10 @@
 COMPILER = gfortran
 
 # Any desired options for the compiler (e.g. -O2, -g, etc.)
-USEROPTS = -O3 -cpp -mcmodel=medium
+USEROPTS = -O3 -cpp -mcmodel=medium -fallow-argument-mismatch
 
 # Location where fftw and netcdf (optional) libraries are installed
-LINKDIR = /global/software/rocky-8.x86_64/modfiles/openmpi/4.1.6-kk4tbvr/gcc/11.4.0/fftw/2.1.5/lib
+LINKDIR = /global/software/rocky-8.x86_64/gcc/linux-rocky8-x86_64/gcc-11.4.0/fftw-2.1.5-rr7ztworwzwdmq65uzyhq2apl2kwplpa/lib
 
 # Location where the optional netcdf include file (netcdf.inc) is installed
 INCLUDEDIR = /global/software/rocky-8.x86_64/modfiles/openmpi/4.1.6-kk4tbvr/gcc/11.4.0/fftw/2.1.5/include
@@ -115,7 +115,7 @@ endif
 
 ifeq ($(PARALLEL),TRUE)
 mpi.o: $(MPIF) header 
-	$(COMPILER) $(COMPOPTS) -fallow-argument-mismatch -c -o mpi.o $(MPIF) 
+	$(COMPILER) $(COMPOPTS) -c -o mpi.o $(MPIF) 
 else
 mpi_serial.o: dummy_code/mpi_serial.f header grid_def
 	$(COMPILER) $(COMPOPTS) -c dummy_code/mpi_serial.f
