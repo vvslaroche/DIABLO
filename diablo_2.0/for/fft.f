@@ -64,7 +64,7 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
       INTEGER         FFTW_FORWARD,      FFTW_BACKWARD,
      *                FFTW_ESTIMATE,     FFTW_MEASURE,
      *                FFTW_OUT_OF_PLACE, FFTW_IN_PLACE,
-     *                FFTW_USE_WISDOM,   FFTW_THREADSAFE
+     *                FFTW_USE_WISDOM,   FFTW_THREADSAFE,
      *                FFTW_PATIENT,      FFTW_DESTROY_INPUT
       PARAMETER(      FFTW_FORWARD=-1,      FFTW_BACKWARD=1,
      *                FFTW_ESTIMATE=0,      FFTW_MEASURE=1,
