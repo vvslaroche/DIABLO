@@ -243,6 +243,7 @@
      &           CTH(0:NXP,0:NZ+1,0:NY+1,1:N_TH),
      &           CFTH(0:NXP,0:NZ+1,0:NY+1,1:N_TH), 
      &           CRTH(0:NXP,0:NZ+1,0:NY+1,1:N_TH)
+     &           ,TEMP_FFT(0:NX/2,0:NZP+1,0:NY+1)
 
       EQUIVALENCE (U1,CU1)
      &          , (U2,CU2)
@@ -261,6 +262,7 @@
 
       COMMON /GLOBAL_VARS/ U1,U2,U3,P,R1,R2,R3,F1,F2,F3,S1,TH,FTH,RTH
      &                 ,CTH,CFTH,CRTH
+     &                 ,TEMP_FFT
 
 ! Variables for outputting statistics
       REAL*8 UBAR(0:NY+1),VBAR(0:NY+1),WBAR(0:NY+1)

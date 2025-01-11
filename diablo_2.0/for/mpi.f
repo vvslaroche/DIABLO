@@ -1544,67 +1544,98 @@ c$$$
       !write(100+RANK) V(0:NX-1,0:NZP-1,1)
 
       ! FFT in X
+      CALL DFFTW_EXECUTE_DFT_R2C(FFTW_X_TO_F_PLAN,
+     *       V(0,0,0), TEMP_FFT(0,0,0))
       DO J=JMIN,JMAX
-       CALL RFFTWND_F77_REAL_TO_COMPLEX(FFTW_X_TO_F_PLAN,NZP,
-     *    V(0,0,J), 1, NX+2, TMP(0,0,J), 1, NX/2+1)
         DO K=0,NZP-1
           DO I=0,NKX
-            TMP(I,K,J)=TMP(I,K,J)/NX
-            TMP_1A(I,K,J)=TMP(I,K,J)
+            TEMP_FFT(I,K,J)=TMP(I,K,J)/NX
           END DO
           DO I=NKX+1,NX/2
-            TMP(I,K,J)=cmplx(0.d0,0.d0)
-          END DO
-          DO I=NKX+1,NX/2-1
-            TMP_1A(I,K,J)=TMP(I,K,J)
+            TEMP_FFT(I,K,J)=CMPLX(0.d0,0.d0)
           END DO
         END DO
       END DO
 
+    !   DO J=JMIN,JMAX
+    !    CALL RFFTWND_F77_REAL_TO_COMPLEX(FFTW_X_TO_F_PLAN,NZP,
+    !  *    V(0,0,J), 1, NX+2, TMP(0,0,J), 1, NX/2+1)
+    !     DO K=0,NZP-1
+    !       DO I=0,NKX
+    !         TMP(I,K,J)=TMP(I,K,J)/NX
+    !         TMP_1A(I,K,J)=TMP(I,K,J)
+    !       END DO
+    !       DO I=NKX+1,NX/2
+    !         TMP(I,K,J)=cmplx(0.d0,0.d0)
+    !       END DO
+    !       DO I=NKX+1,NX/2-1
+    !         TMP_1A(I,K,J)=TMP(I,K,J)
+    !       END DO
+    !     END DO
+    !   END DO
+
       !write(110+RANK,'(2E25.15)') TMP(0:NX/2,0:NZP-1,1)
       !write(110+RANK) TMP(0:NX/2,0:NZP-1,1)
 
-      DO J=JMIN,JMAX
-         call mpi_alltoall(TMP_1A(0,0,J),1,XY2ZY_1,TMP2,1,XY2ZY_2,
-     &        MPI_COMM_Z,IERROR)
-         DO K=0,NZ-1
-            DO I=0,NXP-1
-               VV(I,K,J)=TMP2(I,K)
-            END DO
-            VV(NXP,K,J)=cmplx(0.d0,0.d0)
-         END DO
-         DO K=NZ,NZ+1
-            DO I=0,NXP
-               VV(I,K,J)=cmplx(0.d0,0.d0)    
-            ENDDO 
-         ENDDO
-      END DO
+      CALL MPI_ALLTOALL(TEMP_FFT(0,0,0), 1, XY2ZY_1,
+     *       VV(0,0,0), 1, XY2ZY_2, MPI_COMM_Z, IERROR)
+
+    !   DO J=JMIN,JMAX
+    !      call mpi_alltoall(TMP_1A(0,0,J),1,XY2ZY_1,TMP2,1,XY2ZY_2,
+    !  &        MPI_COMM_Z,IERROR)
+    !      DO K=0,NZ-1
+    !         DO I=0,NXP-1
+    !            VV(I,K,J)=TMP2(I,K)
+    !         END DO
+    !         VV(NXP,K,J)=cmplx(0.d0,0.d0)
+    !      END DO
+    !      DO K=NZ,NZ+1
+    !         DO I=0,NXP
+    !            VV(I,K,J)=cmplx(0.d0,0.d0)    
+    !         ENDDO 
+    !      ENDDO
+    !   END DO
 
       ! FFT in Z
+      CALL DFFTW_EXECUTE_DFT(FFTW_Z_TO_F_PLAN,
+     *       VV(0,0,0), VV(0,0,0))
       DO J=JMIN,JMAX
-         CALL FFTWND_F77(FFTW_Z_TO_F_PLAN,NXP,
-     *        VV(0,0,J), NXP+1, 1, VV(0,0,J), NXP+1, 1)
-         DO K=0,NKZ
-            DO I=0,NXP
-               VV(I,K,J)=VV(I,K,J)/NZ
-            END DO
-         END DO
-c$$$         DO K=NKZ+1,NZ-NKZ-1
-c$$$            DO I=0,NXP
-c$$$               VV(I,K,J)=cmplx(0.d0,0.d0)
-c$$$            END DO
-c$$$         END DO
-c$$$         DO K=NZ-NKZ,NZ-1
-c$$$            DO I=0,NXP
-c$$$               VV(I,K,J)=VV(I,K,J)/NZ
-c$$$            END DO
-c$$$         END DO
-         DO K=1,NKZ
-            DO I=0,NXP
-               VV(I,NKZ+K,J)=VV(I,NZ-1+K-NKZ,J)/NZ
-            END DO
-         END DO
+        DO K=0,NKZ
+          DO I=0,NXP-1
+            VV(I,K,J)=VV(I,K,J)/NZ
+          END DO
+        END DO
+        DO K=1,NKZ
+          DO I=0,NXP-1
+            VV(I,NKZ+K,J)=VV(I,NZ-1+K-NKZ,J)/NZ
+          END DO
+        END DO
       END DO
+
+!       DO J=JMIN,JMAX
+!          CALL FFTWND_F77(FFTW_Z_TO_F_PLAN,NXP,
+!      *        VV(0,0,J), NXP+1, 1, VV(0,0,J), NXP+1, 1)
+!          DO K=0,NKZ
+!             DO I=0,NXP
+!                VV(I,K,J)=VV(I,K,J)/NZ
+!             END DO
+!          END DO
+! c$$$         DO K=NKZ+1,NZ-NKZ-1
+! c$$$            DO I=0,NXP
+! c$$$               VV(I,K,J)=cmplx(0.d0,0.d0)
+! c$$$            END DO
+! c$$$         END DO
+! c$$$         DO K=NZ-NKZ,NZ-1
+! c$$$            DO I=0,NXP
+! c$$$               VV(I,K,J)=VV(I,K,J)/NZ
+! c$$$            END DO
+! c$$$         END DO
+!          DO K=1,NKZ
+!             DO I=0,NXP
+!                VV(I,NKZ+K,J)=VV(I,NZ-1+K-NKZ,J)/NZ
+!             END DO
+!          END DO
+!       END DO
 
       END SUBROUTINE
 
@@ -1625,51 +1656,81 @@ c$$$         END DO
 
       ! FFT in Z
       DO J=JMIN,JMAX
-         ! UNPACK
-         DO K=NKZ,1,-1
-            DO I=0,NXP
-               VV(I,NZ-1+K-NKZ,J)=VV(I,NKZ+K,J)
-            END DO
-         END DO
-         DO K=NKZ+1,NZ-NKZ-1
-            DO I=0,NXP
-               VV(I,K,J)=cmplx(0.d0,0.d0)
-            END DO
-         END DO
-         CALL FFTWND_F77(FFTW_Z_TO_P_PLAN,NXP,
-     *        VV(0,0,J), NXP+1, 1, VV(0,0,J), NXP+1, 1)
+        DO K=NKZ,1,-1
+          DO I=0,NXP-1
+            VV(I,NZ-1+K-NKZ,J)=VV(I,NKZ+K,J)
+          END DO
+        END DO
+        DO K=NKZ+1,NZ-NKZ-1
+          DO I=0,NXP-1
+            VV(I,K,J)=CMPLX(0.d0,0.d0)
+          END DO
+        END DO
       END DO
 
-      DO J=JMIN,JMAX
-         DO K=0,NZ-1
-            DO I=0,NXP-1
-               TMP2(I,K)=VV(I,K,J)
-            END DO
-         END DO
-         call mpi_alltoall(TMP2,1,XY2ZY_2,TMP_1A(0,0,J),1,XY2ZY_1,
-     &        MPI_COMM_Z,IERROR)
-         DO K=0,NZP-1
-           DO I=0,NX/2-1
-              TMP(I,K,J)=TMP_1A(I,K,J)
-           END DO
-           TMP(NX/2,K,J)=cmplx(0.d0,0.d0)
-         END DO
-         DO K=NZP,NZP+1
-           DO I=0,NX/2
-              TMP(I,K,J)=cmplx(0.d0,0.d0)
-           ENDDO
-         ENDDO
+      CALL DFFTW_EXECUTE_DFT(FFTW_Z_TO_P_PLAN,
+     *       VV(0,0,0), VV(0,0,0))
+
+    !   DO J=JMIN,JMAX
+    !      ! UNPACK
+    !      DO K=NKZ,1,-1
+    !         DO I=0,NXP
+    !            VV(I,NZ-1+K-NKZ,J)=VV(I,NKZ+K,J)
+    !         END DO
+    !      END DO
+    !      DO K=NKZ+1,NZ-NKZ-1
+    !         DO I=0,NXP
+    !            VV(I,K,J)=cmplx(0.d0,0.d0)
+    !         END DO
+    !      END DO
+    !      CALL FFTWND_F77(FFTW_Z_TO_P_PLAN,NXP,
+    !  *        VV(0,0,J), NXP+1, 1, VV(0,0,J), NXP+1, 1)
+    !   END DO
 
 
-!         call mpi_alltoall(VV(0,0,J),1,XY2ZY_2,
-!     &        TMP(0,0,J),1,XY2ZY_1,MPI_COMM_Z,IERROR)
-      END DO
+      CALL MPI_ALLTOALL(VV(0,0,0), 1, XY2ZY_2,
+     *       TEMP_FFT(0,0,0), 1, XY2ZY_1, MPI_COMM_Z, IERROR)
+
+!       DO J=JMIN,JMAX
+!          DO K=0,NZ-1
+!             DO I=0,NXP-1
+!                TMP2(I,K)=VV(I,K,J)
+!             END DO
+!          END DO
+!          call mpi_alltoall(TMP2,1,XY2ZY_2,TMP_1A(0,0,J),1,XY2ZY_1,
+!      &        MPI_COMM_Z,IERROR)
+!          DO K=0,NZP-1
+!            DO I=0,NX/2-1
+!               TMP(I,K,J)=TMP_1A(I,K,J)
+!            END DO
+!            TMP(NX/2,K,J)=cmplx(0.d0,0.d0)
+!          END DO
+!          DO K=NZP,NZP+1
+!            DO I=0,NX/2
+!               TMP(I,K,J)=cmplx(0.d0,0.d0)
+!            ENDDO
+!          ENDDO
+! !         call mpi_alltoall(VV(0,0,J),1,XY2ZY_2,
+! !     &        TMP(0,0,J),1,XY2ZY_1,MPI_COMM_Z,IERROR)
+!       END DO
 
       ! FFT in X
       DO J=JMIN,JMAX
-       CALL RFFTWND_F77_COMPLEX_TO_REAL(FFTW_X_TO_P_PLAN,NZP,
-     *    TMP(0,0,J), 1, NX/2+1, V(0,0,J), 1, NX+2)
+        DO K=0,NZP-1
+          DO I=NKX+1,NX/2
+            TEMP_FFT(I,K,J)=CMPLX(0.d0,0.d0)
+          END DO
+        END DO
       END DO
+
+      CALL DFFTW_EXECUTE_DFT_C2R(FFTW_X_TO_P_PLAN,
+     *       TEMP_FFT(0,0,0), V(0,0,0))
+
+    !   DO J=JMIN,JMAX
+    !    CALL RFFTWND_F77_COMPLEX_TO_REAL(FFTW_X_TO_P_PLAN,NZP,
+    !  *    TMP(0,0,J), 1, NX/2+1, V(0,0,J), 1, NX+2)
+    !   END DO
+
 
       END SUBROUTINE
 
