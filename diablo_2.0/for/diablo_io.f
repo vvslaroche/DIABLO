@@ -110,7 +110,7 @@ C Initialize grid
       END IF
 
 C Initialize FFT package (includes defining the wavenumber vectors).
-      CALL INIT_FFT(U1,CU1)
+      CALL INIT_FFT
 
 C Initialize RKW3 parameters.
       H_BAR(1)=DELTA_T*(8.d0/15.d0)
