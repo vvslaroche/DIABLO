@@ -10,7 +10,7 @@
 COMPILER = gfortran
 
 # Any desired options for the compiler (e.g. -O2, -g, etc.)
-USEROPTS = -O3 -cpp -mcmodel=medium -fallow-argument-mismatch
+USEROPTS = -O3 -cpp -mcmodel=medium -fallow-argument-mismatch -fbacktrace
 
 # Location where fftw and netcdf (optional) libraries are installed
 #LINKDIR = /global/software/rocky-8.x86_64/gcc/linux-rocky8-x86_64/gcc-11.4.0/fftw-2.1.5-rr7ztworwzwdmq65uzyhq2apl2kwplpa/lib
