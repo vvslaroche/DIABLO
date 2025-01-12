@@ -72,7 +72,7 @@ LINKOPTS = -L$(LINKDIR) -ldrfftw -ldfftw -lnetcdf
 NETCDF_o = netcdf.o
 else
 COMPOPTS = $(USEROPTS) $(HDF5OPTS)
-LINKOPTS = -L$(LINKDIR) -ldrfftw -ldfftw
+LINKOPTS = -L$(LINKDIR) -lfftw3
 NETCDF_o = no_netcdf.o
 endif
 
