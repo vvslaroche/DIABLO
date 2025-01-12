@@ -13,7 +13,8 @@ COMPILER = gfortran
 USEROPTS = -O3 -cpp -mcmodel=medium -fallow-argument-mismatch
 
 # Location where fftw and netcdf (optional) libraries are installed
-LINKDIR = /global/software/rocky-8.x86_64/gcc/linux-rocky8-x86_64/gcc-11.4.0/fftw-2.1.5-rr7ztworwzwdmq65uzyhq2apl2kwplpa/lib
+#LINKDIR = /global/software/rocky-8.x86_64/gcc/linux-rocky8-x86_64/gcc-11.4.0/fftw-2.1.5-rr7ztworwzwdmq65uzyhq2apl2kwplpa/lib
+LINKDIR = /global/software/rocky-8.x86_64/gcc/linux-rocky8-x86_64/gcc-11.4.0/fftw-3.3.10-dtrem5gawc6jc4s6ks3kwekhctegs5vp/lib
 
 # Location where the optional netcdf include file (netcdf.inc) is installed
 INCLUDEDIR = /global/software/rocky-8.x86_64/modfiles/openmpi/4.1.6-kk4tbvr/gcc/11.4.0/fftw/2.1.5/include
