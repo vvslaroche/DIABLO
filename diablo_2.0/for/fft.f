@@ -149,26 +149,26 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
       IF (RANK.EQ.0) 
      &     write(*,*) 'In fft: NKX,TNKZ: ',NKX,TNKZ
 
-      IF (NUM_PER_DIR .GT. 2) THEN
-        CALL FFTWND_F77_CREATE_PLAN(FFTW_Y_TO_F_PLAN, 1, NY,
-     *       FFTW_FORWARD,  FFTW_MEASURE + FFTW_IN_PLACE )
-        CALL FFTWND_F77_CREATE_PLAN(FFTW_Y_TO_P_PLAN, 1, NY,
-     *       FFTW_BACKWARD, FFTW_MEASURE + FFTW_IN_PLACE )
-        RNY=1.0*NY
-	  KY(0) = 0.
-	  KY2(0) = 0.
-	  CIKY(0) = (0.0,0.0)
-        DO J=1,NKY
-          KY(J)=J*(2.*PI)/LY
-        END DO
-        DO J=1,NKY
-          KY(TNKY+1-J)=-J*(2.*PI)/LY
-        END DO
-        DO J=1,TNKY
-          KY2(J)=KY(J)*KY(J)
-          CIKY(J)=CI*KY(J)
-        END DO
-      END IF
+    !   IF (NUM_PER_DIR .GT. 2) THEN
+    !     CALL FFTWND_F77_CREATE_PLAN(FFTW_Y_TO_F_PLAN, 1, NY,
+    !  *       FFTW_FORWARD,  FFTW_MEASURE + FFTW_IN_PLACE )
+    !     CALL FFTWND_F77_CREATE_PLAN(FFTW_Y_TO_P_PLAN, 1, NY,
+    !  *       FFTW_BACKWARD, FFTW_MEASURE + FFTW_IN_PLACE )
+    !     RNY=1.0*NY
+	  ! KY(0) = 0.
+	  ! KY2(0) = 0.
+	  ! CIKY(0) = (0.0,0.0)
+    !     DO J=1,NKY
+    !       KY(J)=J*(2.*PI)/LY
+    !     END DO
+    !     DO J=1,NKY
+    !       KY(TNKY+1-J)=-J*(2.*PI)/LY
+    !     END DO
+    !     DO J=1,TNKY
+    !       KY2(J)=KY(J)*KY(J)
+    !       CIKY(J)=CI*KY(J)
+    !     END DO
+    !   END IF
 
       DO I=0,NKX
         DO K=0,NZ
@@ -204,15 +204,15 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
 C Looping over the planes of interest, simply perform a real -> complex
 C transform in place in the big storage array, scaling appropriately.
 
-      DO J=JMIN,JMAX
-       CALL RFFTWND_F77_REAL_TO_COMPLEX(FFTW_X_TO_F_PLAN,(KMAX-KMIN+1),
-     *    U(0,KMIN,J), 1, NX+2, CU(0,KMIN,J), 1, NX/2+1)
-        DO K=KMIN,KMAX
-          DO I=0,NKX
-            CU(I,K,J)=CU(I,K,J)/RNX
-          END DO
-        END DO
-      END DO
+    !   DO J=JMIN,JMAX
+    !    CALL RFFTWND_F77_REAL_TO_COMPLEX(FFTW_X_TO_F_PLAN,(KMAX-KMIN+1),
+    !  *    U(0,KMIN,J), 1, NX+2, CU(0,KMIN,J), 1, NX/2+1)
+    !     DO K=KMIN,KMAX
+    !       DO I=0,NKX
+    !         CU(I,K,J)=CU(I,K,J)/RNX
+    !       END DO
+    !     END DO
+    !   END DO
 
       RETURN
       END
@@ -231,15 +231,15 @@ C Looping over the planes of interest, simply set the higher wavenumbers to
 C zero and then perform a complex -> real transform in place in the big
 C storage array.
 
-      DO J=JMIN,JMAX
-        DO K=KMIN,KMAX
-          DO I=NKX+1,NX/2
-            CU(I,K,J)=0.
-          END DO
-        END DO
-       CALL RFFTWND_F77_COMPLEX_TO_REAL(FFTW_X_TO_P_PLAN,(KMAX-KMIN+1),
-     *    CU(0,KMIN,J), 1, NX/2+1, U(0,KMIN,J), 1, NX+2)
-      END DO
+    !   DO J=JMIN,JMAX
+    !     DO K=KMIN,KMAX
+    !       DO I=NKX+1,NX/2
+    !         CU(I,K,J)=0.
+    !       END DO
+    !     END DO
+    !    CALL RFFTWND_F77_COMPLEX_TO_REAL(FFTW_X_TO_P_PLAN,(KMAX-KMIN+1),
+    !  *    CU(0,KMIN,J), 1, NX/2+1, U(0,KMIN,J), 1, NX+2)
+    !   END DO
 
       RETURN
       END
@@ -276,24 +276,24 @@ C temporary storage variable, perform a complex -> complex transform in the
 C y direction, then put the data back into the big storage array, packing the
 C data towards J=0 and scaling appropriately.
 
-      CALL FFT_XZ_TO_FOURIER(U,CU,0,NYM)
-      DO I=0,NKX
-        DO K=0,TNKZ
-          DO J=0,NYM       
-            CYZ_PLANE(J,K)=CU(I,K,J)
-          END DO
-        END DO        
-        CALL FFTWND_F77(FFTW_Y_TO_F_PLAN, TNKZ+1,
-     *    CYZ_PLANE(0,0), 1, NY+1, CYZ_PLANE(0,0), 1, NY+1)
-        DO K=0,TNKZ 
-          DO J=0,NKY
-            CU(I,K,J)=CYZ_PLANE(J,K)/RNY
-          END DO
-          DO J=1,NKY
-            CU(I,K,NKY+J)=CYZ_PLANE(NYM-NKY+J,K)/RNY
-          END DO
-        END DO
-      END DO
+    !   CALL FFT_XZ_TO_FOURIER(U,CU,0,NYM)
+    !   DO I=0,NKX
+    !     DO K=0,TNKZ
+    !       DO J=0,NYM       
+    !         CYZ_PLANE(J,K)=CU(I,K,J)
+    !       END DO
+    !     END DO        
+    !     CALL FFTWND_F77(FFTW_Y_TO_F_PLAN, TNKZ+1,
+    !  *    CYZ_PLANE(0,0), 1, NY+1, CYZ_PLANE(0,0), 1, NY+1)
+    !     DO K=0,TNKZ 
+    !       DO J=0,NKY
+    !         CU(I,K,J)=CYZ_PLANE(J,K)/RNY
+    !       END DO
+    !       DO J=1,NKY
+    !         CU(I,K,NKY+J)=CYZ_PLANE(NYM-NKY+J,K)/RNY
+    !       END DO
+    !     END DO
+    !   END DO
 
       RETURN
       END
@@ -314,27 +314,27 @@ C complex transform in the y direction, then put the data back into the big
 C storage array.  Finally, transform in the X & Z directions using
 C FFT_XZ_TO_PHYSICAL.
 
-      DO I=0,NKX
-        DO K=0,TNKZ 
-          DO J=0,NKY
-            CYZ_PLANE(J,K)=CU(I,K,J)
-          END DO
-          DO J=NKY+1,NYM-NKY
-            CYZ_PLANE(J,K)=CMPLX(0.0,0.0)
-          END DO
-          DO J=1,NKY
-            CYZ_PLANE(NYM-NKY+J,K)=CU(I,K,NKY+J)
-          END DO
-        END DO
-        CALL FFTWND_F77(FFTW_Y_TO_P_PLAN, TNKZ+1,
-     *    CYZ_PLANE(0,0), 1, NY+1, CYZ_PLANE(0,0), 1, NY+1)
-        DO K=0,TNKZ
-          DO J=0,NYM       
-            CU(I,K,J)=CYZ_PLANE(J,K)
-          END DO
-        END DO        
-      END DO
-      CALL FFT_XZ_TO_PHYSICAL(CU,U,0,NYM)
+    !   DO I=0,NKX
+    !     DO K=0,TNKZ 
+    !       DO J=0,NKY
+    !         CYZ_PLANE(J,K)=CU(I,K,J)
+    !       END DO
+    !       DO J=NKY+1,NYM-NKY
+    !         CYZ_PLANE(J,K)=CMPLX(0.0,0.0)
+    !       END DO
+    !       DO J=1,NKY
+    !         CYZ_PLANE(NYM-NKY+J,K)=CU(I,K,NKY+J)
+    !       END DO
+    !     END DO
+    !     CALL FFTWND_F77(FFTW_Y_TO_P_PLAN, TNKZ+1,
+    !  *    CYZ_PLANE(0,0), 1, NY+1, CYZ_PLANE(0,0), 1, NY+1)
+    !     DO K=0,TNKZ
+    !       DO J=0,NYM       
+    !         CU(I,K,J)=CYZ_PLANE(J,K)
+    !       END DO
+    !     END DO        
+    !   END DO
+    !   CALL FFT_XZ_TO_PHYSICAL(CU,U,0,NYM)
 
       RETURN
       END
