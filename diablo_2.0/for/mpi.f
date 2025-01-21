@@ -1544,6 +1544,7 @@ c$$$
       !write(100+RANK) V(0:NX-1,0:NZP-1,1)
 
       ! FFT in X
+      WRITE(*,*) 'CHECKPOINT 1.1'
       CALL DFFTW_EXECUTE_DFT_R2C(FFTW_X_TO_F_PLAN,
      *       V(0,0,0), TEMP_FFT(0,0,0))
       DO J=JMIN,JMAX
@@ -1577,6 +1578,7 @@ c$$$
       !write(110+RANK,'(2E25.15)') TMP(0:NX/2,0:NZP-1,1)
       !write(110+RANK) TMP(0:NX/2,0:NZP-1,1)
 
+      WRITE(*,*) 'CHECKPOINT 1.2'
       CALL MPI_ALLTOALL(TEMP_FFT(0,0,0), 1, XY2ZY_1,
      *       VV(0,0,0), 1, XY2ZY_2, MPI_COMM_Z, IERROR)
 
@@ -1597,6 +1599,7 @@ c$$$
     !   END DO
 
       ! FFT in Z
+      WRITE(*,*) 'CHECKPOINT 1.3'
       CALL DFFTW_EXECUTE_DFT(FFTW_Z_TO_F_PLAN,
      *       VV(0,0,0), VV(0,0,0))
       DO J=JMIN,JMAX
@@ -1637,6 +1640,7 @@ c$$$
 !          END DO
 !       END DO
 
+      WRITE(*,*) 'CHECKPOINT 1.4'
       END SUBROUTINE
 
 
