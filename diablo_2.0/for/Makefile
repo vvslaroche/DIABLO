@@ -17,7 +17,8 @@ USEROPTS = -O3 -cpp -mcmodel=medium -fallow-argument-mismatch -fbacktrace
 LINKDIR = /global/software/rocky-8.x86_64/gcc/linux-rocky8-x86_64/gcc-11.4.0/fftw-3.3.10-dtrem5gawc6jc4s6ks3kwekhctegs5vp/lib
 
 # Location where the optional netcdf include file (netcdf.inc) is installed
-INCLUDEDIR = /global/software/rocky-8.x86_64/modfiles/openmpi/4.1.6-kk4tbvr/gcc/11.4.0/fftw/2.1.5/include
+# INCLUDEDIR = /global/software/rocky-8.x86_64/modfiles/openmpi/4.1.6-kk4tbvr/gcc/11.4.0/fftw/2.1.5/include
+INCLUDEDIR = /global/software/rocky-8.x86_64/gcc/linux-rocky8-x86_64/gcc-11.4.0/fftw-3.3.10-dtrem5gawc6jc4s6ks3kwekhctegs5vp/include
 
 # Option to compile with MPI libraries
 PARALLEL = TRUE
@@ -72,7 +73,7 @@ COMPOPTS = $(USEROPTS) $(HDF5OPTS) -I$(INCLUDEDIR)
 LINKOPTS = -L$(LINKDIR) -ldrfftw -ldfftw -lnetcdf
 NETCDF_o = netcdf.o
 else
-COMPOPTS = $(USEROPTS) $(HDF5OPTS)
+COMPOPTS = $(USEROPTS) $(HDF5OPTS) -I$(INCLUDEDIR)
 LINKOPTS = -L$(LINKDIR) -lfftw3
 NETCDF_o = no_netcdf.o
 endif
