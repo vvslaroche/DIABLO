@@ -55,22 +55,23 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
       SUBROUTINE INIT_FFT
 C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
       INCLUDE 'header'
+      INCLUDE 'fftw3.f'
       INTEGER I,J,K
 
       INTEGER HOWMANY_N(2), HOWMANY_STRIDE_R(2), HOWMANY_STRIDE_C(2)
       REAL*8        V(0:NX+1,0:NZP+1,0:NY+1)
       COMPLEX*16    VV(0:NXP,0:NZ+1,0:NY+1)
 
-      INTEGER         FFTW_FORWARD,      FFTW_BACKWARD,
-     *                FFTW_ESTIMATE,     FFTW_MEASURE,
-     *                FFTW_OUT_OF_PLACE, FFTW_IN_PLACE,
-     *                FFTW_USE_WISDOM,   FFTW_THREADSAFE,
-     *                FFTW_PATIENT,      FFTW_DESTROY_INPUT
-      PARAMETER(      FFTW_FORWARD=-1,      FFTW_BACKWARD=1,
-     *                FFTW_ESTIMATE=0,      FFTW_MEASURE=1,
-     *                FFTW_OUT_OF_PLACE=0,  FFTW_IN_PLACE=8,
-     *                FFTW_USE_WISDOM=16,   FFTW_THREADSAFE=128,
-     *                FFTW_PATIENT=1,       FFTW_DESTROY_INPUT=1 )
+    !   INTEGER         FFTW_FORWARD,      FFTW_BACKWARD,
+    !  *                FFTW_ESTIMATE,     FFTW_MEASURE,
+    !  *                FFTW_OUT_OF_PLACE, FFTW_IN_PLACE,
+    !  *                FFTW_USE_WISDOM,   FFTW_THREADSAFE,
+    !  *                FFTW_PATIENT,      FFTW_DESTROY_INPUT
+    !   PARAMETER(      FFTW_FORWARD=-1,      FFTW_BACKWARD=1,
+    !  *                FFTW_ESTIMATE=0,      FFTW_MEASURE=1,
+    !  *                FFTW_OUT_OF_PLACE=0,  FFTW_IN_PLACE=8,
+    !  *                FFTW_USE_WISDOM=16,   FFTW_THREADSAFE=128,
+    !  *                FFTW_PATIENT=1,       FFTW_DESTROY_INPUT=1 )
 
       IF (RANK.EQ.0) 
      &     WRITE(6,*) 'Initializing FFTW package.'
