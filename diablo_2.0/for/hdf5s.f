@@ -485,7 +485,7 @@ c     Dimensions in the memory and in the file
       subroutine ReadGridHDF5(FNAME,coord)
       use hdf5
 
-      implicit none
+c      implicit none
 
       INCLUDE 'header'
 
@@ -621,7 +621,7 @@ c$$$      call h5aclose_f(aid, error)
 
       subroutine G2GF(var)
 
-      implicit none
+c      implicit none
 
       include 'header'
 
@@ -644,7 +644,7 @@ c$$$      call h5aclose_f(aid, error)
 
       subroutine GF2G(var)
 
-      implicit none
+c      implicit none
 
       include 'header'
 
