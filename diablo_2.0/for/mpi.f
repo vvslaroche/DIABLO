@@ -870,6 +870,8 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-----|
       INCLUDE 'header'
 
       INTEGER bl(2),disp(2),types(2)
+      INTEGER, DIMENSION(3) :: SIZES, SUBSIZES, STARTS
+      INTEGER TYPE_CFP, TYPE_CFF
 
       INTEGER IPROCS,TYPE1,COMM_CART
       INTEGER DIMS(2),PERDIM(2)
@@ -974,21 +976,61 @@ c$$$      CALL  FFTWND_F77_CREATE_PLAN(FFTW_Z_TO_P_PLAN, 1, NZ,
 c$$$     *        FFTW_BACKWARD,  FFTW_MEASURE + FFTW_IN_PLACE )
 
 
+
+c     ------------------------------
+c     Define datatypes
+c     ------------------------------
+
+      SIZES = (/NX/2+1, NZP+2, NY+2/)
+      SUBSIZES = (/NXP, NZP, NY+2/)
+      STARTS = (/0, 0, 0/)
+      CALL MPI_TYPE_CREATE_SUBARRAY(3,SIZES,SUBSIZES,STARTS,
+     &     MPI_ORDER_FORTRAN, MPI_DOUBLE_COMPLEX, TYPE_CFP, IERROR)
+      CALL MPI_TYPE_COMMIT(TYPE_CFP, IERROR)
+
+
+      SIZES = (/NXP+1, NZ+2, NY+2/)
+      SUBSIZES = (/NXP, NZP, NY+2/)
+      STARTS = (/0, 0, 0/)
+      CALL MPI_TYPE_CREATE_SUBARRAY(3,SIZES,SUBSIZES,STARTS,
+     &     MPI_ORDER_FORTRAN, MPI_DOUBLE_COMPLEX, TYPE_CFF, IERROR)
+      CALL MPI_TYPE_COMMIT(TYPE_CFF, IERROR)
+
+
+
+
+      BL(1:2) = (/1, 1/)
+      DISP(1:2) = (/0, NXP*16/)
+      TYPES = (/TYPE_CFP, MPI_UB/)
+      CALL MPI_TYPE_CREATE_STRUCT(2, BL, DISP, TYPES, XY2ZY_1, IERROR)
+      CALL MPI_TYPE_COMMIT(XY2ZY_1, IERROR)
+      CALL MPI_TYPE_FREE(TYPE_CFP, IERROR)
+
+
+      BL(1:2) = (/1, 1/)
+      DISP(1:2) = (/0, NZP*(NXP+1)*16/)
+      TYPES = (/TYPE_CFF, MPI_UB/)
+      CALL MPI_TYPE_CREATE_STRUCT(2, BL, DISP, TYPES, XY2ZY_2, IERROR)
+      CALL MPI_TYPE_COMMIT(XY2ZY_2, IERROR)
+      CALL MPI_TYPE_FREE(TYPE_CFF, IERROR)
+
+
+
 c     ------------------------------
 c     Define datatypes
 c     ------------------------------
 
       ! Box full x to z (1)
-      call MPI_TYPE_VECTOR(NZP,NXP,NX/2,
-     &     MPI_DOUBLE_COMPLEX,TYPE1,ierror)
-      call MPI_TYPE_COMMIT(TYPE1,ierror)
-      bl(1:2)=(/1, 1/)
-      disp(1:2)= (/0, NXP*16/)
-      types=(/TYPE1, MPI_UB/)
+    !   call MPI_TYPE_VECTOR(NZP,NXP,NX/2,
+    !  &     MPI_DOUBLE_COMPLEX,TYPE1,ierror)
+    !   call MPI_TYPE_COMMIT(TYPE1,ierror)
+    !   bl(1:2)=(/1, 1/)
+    !   disp(1:2)= (/0, NXP*16/)
+    !   types=(/TYPE1, MPI_UB/)
 
-      call MPI_TYPE_STRUCT(2,bl,disp,types,XY2ZY_1,ierror)
-      call MPI_TYPE_COMMIT(XY2ZY_1,ierror)
-      call MPI_TYPE_FREE(TYPE1,ierror)
+    !   call MPI_TYPE_STRUCT(2,bl,disp,types,XY2ZY_1,ierror)
+    !   call MPI_TYPE_COMMIT(XY2ZY_1,ierror)
+    !   call MPI_TYPE_FREE(TYPE1,ierror)
 
       ! Box full x to z (2)
 C$$$      call MPI_TYPE_VECTOR(NZP,NXP,NXP+1,
@@ -1003,9 +1045,9 @@ C$$$      call MPI_TYPE_STRUCT(2,bl,disp,types,XY2ZY_2,ierror)
 C$$$      call MPI_TYPE_COMMIT(XY2ZY_2,ierror)
 C$$$      call MPI_TYPE_FREE(TYPE1,ierror)
 
-      call MPI_TYPE_VECTOR(NZP,NXP,NXP,
-     &     MPI_DOUBLE_COMPLEX,XY2ZY_2,ierror)
-      call MPI_TYPE_COMMIT(XY2ZY_2,ierror)
+    !   call MPI_TYPE_VECTOR(NZP,NXP,NXP,
+    !  &     MPI_DOUBLE_COMPLEX,XY2ZY_2,ierror)
+    !   call MPI_TYPE_COMMIT(XY2ZY_2,ierror)
        
 c     ///////////////////////////////////
 c     OTHER POSSIBLE TRANSPOSES!!!!
