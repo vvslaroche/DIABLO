@@ -1645,7 +1645,7 @@ c$$$
       END DO
 
       ! FFT in Z
-      WRITE(*,*) 'CHECKPOINT 1.3'
+      ! WRITE(*,*) 'CHECKPOINT 1.3'
     !   CALL DFFTW_EXECUTE_DFT(FFTW_Z_TO_F_PLAN,
     !  *       VV(0,0,0), VV(0,0,0))
     !   DO J=JMIN,JMAX
@@ -1688,7 +1688,7 @@ c$$$         END DO
          END DO
       END DO
 
-      WRITE(*,*) 'CHECKPOINT 1.4'
+      ! WRITE(*,*) 'CHECKPOINT 1.4'
       END SUBROUTINE
 
 
