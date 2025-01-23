@@ -1564,9 +1564,9 @@ c$$$
       !write(110+RANK,'(2E25.15)') TMP(0:NX/2,0:NZP-1,1)
       !write(110+RANK) TMP(0:NX/2,0:NZP-1,1)
 
-      WRITE(*,*) TMP_1A(0,0,1)
-      WRITE(*,*) XY2ZY_1
-      STOP 'exiting'
+      ! WRITE(*,*) TMP_1A(0,0,1)
+      ! WRITE(*,*) XY2ZY_1
+      ! STOP 'exiting'
       DO J=JMIN,JMAX
          call mpi_alltoall(TMP_1A(0,0,J),1,XY2ZY_1,TMP2,1,XY2ZY_2,
      &        MPI_COMM_Z,IERROR)
