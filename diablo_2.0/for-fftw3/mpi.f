@@ -981,38 +981,38 @@ c     ------------------------------
 c     Define datatypes
 c     ------------------------------
 
-      SIZES = (/NX/2+1, NZP+2, NY+2/)
-      SUBSIZES = (/NXP, NZP, NY+2/)
-      STARTS = (/0, 0, 0/)
-      CALL MPI_TYPE_CREATE_SUBARRAY(3,SIZES,SUBSIZES,STARTS,
-     &     MPI_ORDER_FORTRAN, MPI_DOUBLE_COMPLEX, TYPE_CFP, IERROR)
-      CALL MPI_TYPE_COMMIT(TYPE_CFP, IERROR)
+    !   SIZES = (/NX/2+1, NZP+2, NY+2/)
+    !   SUBSIZES = (/NXP, NZP, NY+2/)
+    !   STARTS = (/0, 0, 0/)
+    !   CALL MPI_TYPE_CREATE_SUBARRAY(3,SIZES,SUBSIZES,STARTS,
+    !  &     MPI_ORDER_FORTRAN, MPI_DOUBLE_COMPLEX, TYPE_CFP, IERROR)
+    !   CALL MPI_TYPE_COMMIT(TYPE_CFP, IERROR)
 
 
-      SIZES = (/NXP+1, NZ+2, NY+2/)
-      SUBSIZES = (/NXP, NZP, NY+2/)
-      STARTS = (/0, 0, 0/)
-      CALL MPI_TYPE_CREATE_SUBARRAY(3,SIZES,SUBSIZES,STARTS,
-     &     MPI_ORDER_FORTRAN, MPI_DOUBLE_COMPLEX, TYPE_CFF, IERROR)
-      CALL MPI_TYPE_COMMIT(TYPE_CFF, IERROR)
+    !   SIZES = (/NXP+1, NZ+2, NY+2/)
+    !   SUBSIZES = (/NXP, NZP, NY+2/)
+    !   STARTS = (/0, 0, 0/)
+    !   CALL MPI_TYPE_CREATE_SUBARRAY(3,SIZES,SUBSIZES,STARTS,
+    !  &     MPI_ORDER_FORTRAN, MPI_DOUBLE_COMPLEX, TYPE_CFF, IERROR)
+    !   CALL MPI_TYPE_COMMIT(TYPE_CFF, IERROR)
 
 
 
 
-      BL(1:2) = (/1, 1/)
-      DISP(1:2) = (/0, NXP*16/)
-      TYPES = (/TYPE_CFP, MPI_UB/)
-      CALL MPI_TYPE_CREATE_STRUCT(2, BL, DISP, TYPES, XY2ZY_1, IERROR)
-      CALL MPI_TYPE_COMMIT(XY2ZY_1, IERROR)
-      CALL MPI_TYPE_FREE(TYPE_CFP, IERROR)
+    !   BL(1:2) = (/1, 1/)
+    !   DISP(1:2) = (/0, NXP*16/)
+    !   TYPES = (/TYPE_CFP, MPI_UB/)
+    !   CALL MPI_TYPE_CREATE_STRUCT(2, BL, DISP, TYPES, XY2ZY_1, IERROR)
+    !   CALL MPI_TYPE_COMMIT(XY2ZY_1, IERROR)
+    !   CALL MPI_TYPE_FREE(TYPE_CFP, IERROR)
 
 
-      BL(1:2) = (/1, 1/)
-      DISP(1:2) = (/0, NZP*(NXP+1)*16/)
-      TYPES = (/TYPE_CFF, MPI_UB/)
-      CALL MPI_TYPE_CREATE_STRUCT(2, BL, DISP, TYPES, XY2ZY_2, IERROR)
-      CALL MPI_TYPE_COMMIT(XY2ZY_2, IERROR)
-      CALL MPI_TYPE_FREE(TYPE_CFF, IERROR)
+    !   BL(1:2) = (/1, 1/)
+    !   DISP(1:2) = (/0, NZP*(NXP+1)*16/)
+    !   TYPES = (/TYPE_CFF, MPI_UB/)
+    !   CALL MPI_TYPE_CREATE_STRUCT(2, BL, DISP, TYPES, XY2ZY_2, IERROR)
+    !   CALL MPI_TYPE_COMMIT(XY2ZY_2, IERROR)
+    !   CALL MPI_TYPE_FREE(TYPE_CFF, IERROR)
 
 
 
@@ -1021,16 +1021,16 @@ c     Define datatypes
 c     ------------------------------
 
       ! Box full x to z (1)
-    !   call MPI_TYPE_VECTOR(NZP,NXP,NX/2,
-    !  &     MPI_DOUBLE_COMPLEX,TYPE1,ierror)
-    !   call MPI_TYPE_COMMIT(TYPE1,ierror)
-    !   bl(1:2)=(/1, 1/)
-    !   disp(1:2)= (/0, NXP*16/)
-    !   types=(/TYPE1, MPI_UB/)
+      call MPI_TYPE_VECTOR(NZP,NXP,NX/2,
+     &     MPI_DOUBLE_COMPLEX,TYPE1,ierror)
+      call MPI_TYPE_COMMIT(TYPE1,ierror)
+      bl(1:2)=(/1, 1/)
+      disp(1:2)= (/0, NXP*16/)
+      types=(/TYPE1, MPI_UB/)
 
-    !   call MPI_TYPE_STRUCT(2,bl,disp,types,XY2ZY_1,ierror)
-    !   call MPI_TYPE_COMMIT(XY2ZY_1,ierror)
-    !   call MPI_TYPE_FREE(TYPE1,ierror)
+      call MPI_TYPE_STRUCT(2,bl,disp,types,XY2ZY_1,ierror)
+      call MPI_TYPE_COMMIT(XY2ZY_1,ierror)
+      call MPI_TYPE_FREE(TYPE1,ierror)
 
       ! Box full x to z (2)
 C$$$      call MPI_TYPE_VECTOR(NZP,NXP,NXP+1,
@@ -1045,9 +1045,9 @@ C$$$      call MPI_TYPE_STRUCT(2,bl,disp,types,XY2ZY_2,ierror)
 C$$$      call MPI_TYPE_COMMIT(XY2ZY_2,ierror)
 C$$$      call MPI_TYPE_FREE(TYPE1,ierror)
 
-    !   call MPI_TYPE_VECTOR(NZP,NXP,NXP,
-    !  &     MPI_DOUBLE_COMPLEX,XY2ZY_2,ierror)
-    !   call MPI_TYPE_COMMIT(XY2ZY_2,ierror)
+      call MPI_TYPE_VECTOR(NZP,NXP,NXP,
+     &     MPI_DOUBLE_COMPLEX,XY2ZY_2,ierror)
+      call MPI_TYPE_COMMIT(XY2ZY_2,ierror)
        
 c     ///////////////////////////////////
 c     OTHER POSSIBLE TRANSPOSES!!!!
@@ -1586,103 +1586,107 @@ c$$$
       !write(100+RANK) V(0:NX-1,0:NZP-1,1)
 
       ! FFT in X
-      WRITE(*,*) 'CHECKPOINT 1.1'
-      CALL DFFTW_EXECUTE_DFT_R2C(FFTW_X_TO_F_PLAN,
-     *       V(0,0,0), TEMP_FFT(0,0,0))
-      DO J=JMIN,JMAX
-        DO K=0,NZP-1
-          DO I=0,NKX
-            TEMP_FFT(I,K,J)=TMP(I,K,J)/NX
-          END DO
-          DO I=NKX+1,NX/2
-            TEMP_FFT(I,K,J)=CMPLX(0.d0,0.d0)
-          END DO
-        END DO
-      END DO
-
+    !   WRITE(*,*) 'CHECKPOINT 1.1'
+    !   CALL DFFTW_EXECUTE_DFT_R2C(FFTW_X_TO_F_PLAN,
+    !  *       V(0,0,0), TEMP_FFT(0,0,0))
     !   DO J=JMIN,JMAX
-    !    CALL RFFTWND_F77_REAL_TO_COMPLEX(FFTW_X_TO_F_PLAN,NZP,
-    !  *    V(0,0,J), 1, NX+2, TMP(0,0,J), 1, NX/2+1)
     !     DO K=0,NZP-1
     !       DO I=0,NKX
-    !         TMP(I,K,J)=TMP(I,K,J)/NX
-    !         TMP_1A(I,K,J)=TMP(I,K,J)
+    !         TEMP_FFT(I,K,J)=TMP(I,K,J)/NX
     !       END DO
     !       DO I=NKX+1,NX/2
-    !         TMP(I,K,J)=cmplx(0.d0,0.d0)
-    !       END DO
-    !       DO I=NKX+1,NX/2-1
-    !         TMP_1A(I,K,J)=TMP(I,K,J)
+    !         TEMP_FFT(I,K,J)=CMPLX(0.d0,0.d0)
     !       END DO
     !     END DO
     !   END DO
 
-      !write(110+RANK,'(2E25.15)') TMP(0:NX/2,0:NZP-1,1)
-      !write(110+RANK) TMP(0:NX/2,0:NZP-1,1)
-
-      WRITE(*,*) 'CHECKPOINT 1.2'
-      WRITE(*,*) TEMP_FFT(0,0,0)
-      WRITE(*,*) XY2ZY_1
-      CALL MPI_ALLTOALL(TEMP_FFT(0,0,0), 1, XY2ZY_1,
-     *       VV(0,0,0), 1, XY2ZY_2, MPI_COMM_Z, IERROR)
-
-    !   DO J=JMIN,JMAX
-    !      call mpi_alltoall(TMP_1A(0,0,J),1,XY2ZY_1,TMP2,1,XY2ZY_2,
-    !  &        MPI_COMM_Z,IERROR)
-    !      DO K=0,NZ-1
-    !         DO I=0,NXP-1
-    !            VV(I,K,J)=TMP2(I,K)
-    !         END DO
-    !         VV(NXP,K,J)=cmplx(0.d0,0.d0)
-    !      END DO
-    !      DO K=NZ,NZ+1
-    !         DO I=0,NXP
-    !            VV(I,K,J)=cmplx(0.d0,0.d0)    
-    !         ENDDO 
-    !      ENDDO
-    !   END DO
-
-      ! FFT in Z
-      WRITE(*,*) 'CHECKPOINT 1.3'
-      CALL DFFTW_EXECUTE_DFT(FFTW_Z_TO_F_PLAN,
-     *       VV(0,0,0), VV(0,0,0))
       DO J=JMIN,JMAX
-        DO K=0,NKZ
-          DO I=0,NXP-1
-            VV(I,K,J)=VV(I,K,J)/NZ
+    !    CALL RFFTWND_F77_REAL_TO_COMPLEX(FFTW_X_TO_F_PLAN,NZP,
+    !  *    V(0,0,J), 1, NX+2, TMP(0,0,J), 1, NX/2+1)
+       CALL DFFTW_EXECUTE_DFT_R2C(FFTW_X_TO_F_PLAN,
+     *      V(0,0,J), TMP(0,0,J))
+        DO K=0,NZP-1
+          DO I=0,NKX
+            TMP(I,K,J)=TMP(I,K,J)/NX
+            TMP_1A(I,K,J)=TMP(I,K,J)
           END DO
-        END DO
-        DO K=1,NKZ
-          DO I=0,NXP-1
-            VV(I,NKZ+K,J)=VV(I,NZ-1+K-NKZ,J)/NZ
+          DO I=NKX+1,NX/2
+            TMP(I,K,J)=cmplx(0.d0,0.d0)
+          END DO
+          DO I=NKX+1,NX/2-1
+            TMP_1A(I,K,J)=TMP(I,K,J)
           END DO
         END DO
       END DO
 
-!       DO J=JMIN,JMAX
-!          CALL FFTWND_F77(FFTW_Z_TO_F_PLAN,NXP,
-!      *        VV(0,0,J), NXP+1, 1, VV(0,0,J), NXP+1, 1)
-!          DO K=0,NKZ
-!             DO I=0,NXP
-!                VV(I,K,J)=VV(I,K,J)/NZ
-!             END DO
-!          END DO
-! c$$$         DO K=NKZ+1,NZ-NKZ-1
-! c$$$            DO I=0,NXP
-! c$$$               VV(I,K,J)=cmplx(0.d0,0.d0)
-! c$$$            END DO
-! c$$$         END DO
-! c$$$         DO K=NZ-NKZ,NZ-1
-! c$$$            DO I=0,NXP
-! c$$$               VV(I,K,J)=VV(I,K,J)/NZ
-! c$$$            END DO
-! c$$$         END DO
-!          DO K=1,NKZ
-!             DO I=0,NXP
-!                VV(I,NKZ+K,J)=VV(I,NZ-1+K-NKZ,J)/NZ
-!             END DO
-!          END DO
-!       END DO
+      !write(110+RANK,'(2E25.15)') TMP(0:NX/2,0:NZP-1,1)
+      !write(110+RANK) TMP(0:NX/2,0:NZP-1,1)
+
+    !   WRITE(*,*) 'CHECKPOINT 1.2'
+    !   WRITE(*,*) TEMP_FFT(0,0,0)
+    !   WRITE(*,*) XY2ZY_1
+    !   CALL MPI_ALLTOALL(TEMP_FFT(0,0,0), 1, XY2ZY_1,
+    !  *       VV(0,0,0), 1, XY2ZY_2, MPI_COMM_Z, IERROR)
+
+      DO J=JMIN,JMAX
+         call mpi_alltoall(TMP_1A(0,0,J),1,XY2ZY_1,TMP2,1,XY2ZY_2,
+     &        MPI_COMM_Z,IERROR)
+         DO K=0,NZ-1
+            DO I=0,NXP-1
+               VV(I,K,J)=TMP2(I,K)
+            END DO
+            VV(NXP,K,J)=cmplx(0.d0,0.d0)
+         END DO
+         DO K=NZ,NZ+1
+            DO I=0,NXP
+               VV(I,K,J)=cmplx(0.d0,0.d0)    
+            ENDDO 
+         ENDDO
+      END DO
+
+      ! FFT in Z
+      WRITE(*,*) 'CHECKPOINT 1.3'
+    !   CALL DFFTW_EXECUTE_DFT(FFTW_Z_TO_F_PLAN,
+    !  *       VV(0,0,0), VV(0,0,0))
+    !   DO J=JMIN,JMAX
+    !     DO K=0,NKZ
+    !       DO I=0,NXP-1
+    !         VV(I,K,J)=VV(I,K,J)/NZ
+    !       END DO
+    !     END DO
+    !     DO K=1,NKZ
+    !       DO I=0,NXP-1
+    !         VV(I,NKZ+K,J)=VV(I,NZ-1+K-NKZ,J)/NZ
+    !       END DO
+    !     END DO
+    !   END DO
+
+      DO J=JMIN,JMAX
+    !      CALL FFTWND_F77(FFTW_Z_TO_F_PLAN,NXP,
+    !  *        VV(0,0,J), NXP+1, 1, VV(0,0,J), NXP+1, 1)
+         CALL DFFTW_EXECUTE_DFT_R2C(FFTW_Z_TO_F_PLAN,
+     *        VV(0,0,J), VV(0,0,J))
+         DO K=0,NKZ
+            DO I=0,NXP
+               VV(I,K,J)=VV(I,K,J)/NZ
+            END DO
+         END DO
+c$$$         DO K=NKZ+1,NZ-NKZ-1
+c$$$            DO I=0,NXP
+c$$$               VV(I,K,J)=cmplx(0.d0,0.d0)
+c$$$            END DO
+c$$$         END DO
+c$$$         DO K=NZ-NKZ,NZ-1
+c$$$            DO I=0,NXP
+c$$$               VV(I,K,J)=VV(I,K,J)/NZ
+c$$$            END DO
+c$$$         END DO
+         DO K=1,NKZ
+            DO I=0,NXP
+               VV(I,NKZ+K,J)=VV(I,NZ-1+K-NKZ,J)/NZ
+            END DO
+         END DO
+      END DO
 
       WRITE(*,*) 'CHECKPOINT 1.4'
       END SUBROUTINE

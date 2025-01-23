@@ -59,8 +59,9 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
       INTEGER I,J,K
 
       INTEGER HOWMANY_N(2), HOWMANY_STRIDE_R(2), HOWMANY_STRIDE_C(2)
-      REAL*8        V(0:NX+1,0:NZP+1,0:NY+1)
-      COMPLEX*16    VV(0:NXP,0:NZ+1,0:NY+1)
+      REAL*8      V  (0:NX+1,0:NZP+1,0:NY+1)
+      COMPLEX*16  VV (0:NXP ,0:NZ +1,0:NY+1)
+      COMPLEX*16  TMP(0:NX/2,0:NZP+1,0:NY+1)
 
     !   INTEGER         FFTW_FORWARD,      FFTW_BACKWARD,
     !  *                FFTW_ESTIMATE,     FFTW_MEASURE,
@@ -87,20 +88,22 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
          HOWMANY_STRIDE_R(2) = (NZP + 2)*(NX + 2)
          HOWMANY_STRIDE_C(1) = INT(NX/2 + 1)
          HOWMANY_STRIDE_C(2) = INT(NX/2 + 1)*(NZP + 2)
-         CALL DFFTW_PLAN_GURU_DFT_R2C(FFTW_X_TO_F_PLAN, 1, NX, 1, 1,
-     *        2, HOWMANY_N, HOWMANY_STRIDE_R, HOWMANY_STRIDE_C,
-     *        V(0,0,0), TEMP_FFT(0,0,0),
-     *        FFTW_PATIENT + FFTW_DESTROY_INPUT)
-         CALL DFFTW_PLAN_GURU_DFT_C2R(FFTW_X_TO_P_PLAN, 1, NX, 1, 1,
-     *        2, HOWMANY_N, HOWMANY_STRIDE_C, HOWMANY_STRIDE_R,
-     *        TEMP_FFT(0,0,0), V(0,0,0),
-     *        FFTW_PATIENT + FFTW_DESTROY_INPUT)
-    !      CALL DFFTW_PLAN_DFT_C2R_1D(FFTW_X_TO_P_PLAN, NX,
-    !  *        U1, CU1, FFTW_MEASURE)
+    !      CALL DFFTW_PLAN_GURU_DFT_R2C(FFTW_X_TO_F_PLAN, 1, NX, 1, 1,
+    !  *        2, HOWMANY_N, HOWMANY_STRIDE_R, HOWMANY_STRIDE_C,
+    !  *        V(0,0,0), TEMP_FFT(0,0,0),
+    !  *        FFTW_PATIENT + FFTW_DESTROY_INPUT)
+    !      CALL DFFTW_PLAN_GURU_DFT_C2R(FFTW_X_TO_P_PLAN, 1, NX, 1, 1,
+    !  *        2, HOWMANY_N, HOWMANY_STRIDE_C, HOWMANY_STRIDE_R,
+    !  *        TEMP_FFT(0,0,0), V(0,0,0),
+    !  *        FFTW_PATIENT + FFTW_DESTROY_INPUT)
     !      CALL DFFTW_PLAN_DFT_R2C_1D(FFTW_X_TO_F_PLAN, NX,
-    !  *        U1, CU1, FFTW_MEASURE)
+    !  *        V, TMP, FFTW_MEASURE)
     !      CALL DFFTW_PLAN_DFT_C2R_1D(FFTW_X_TO_P_PLAN, NX,
-    !  *        U1, CU1, FFTW_MEASURE)
+    !  *        TMP, V, FFTW_MEASURE)
+         CALL DFFTW_PLAN_GURU_DFT_R2C(FFTW_X_TO_F_PLAN, 1, NX, 1, 1,
+     *        1, NZP, NX+2, NX/2+1, V, TMP, FFTW_MEASURE)
+         CALL DFFTW_PLAN_GURU_DFT_C2R(FFTW_X_TO_P_PLAN, 1, NX, 1, 1,
+     *        1, NZP, NX/2+1, NX+2, TMP, V, FFTW_MEASURE)
     !      CALL RFFTWND_F77_CREATE_PLAN(FFTW_X_TO_F_PLAN, 1, NX,      
     !  *        FFTW_FORWARD,  FFTW_MEASURE  ) 
     !      CALL RFFTWND_F77_CREATE_PLAN(FFTW_X_TO_P_PLAN, 1, NX,            
@@ -118,18 +121,22 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
         HOWMANY_N(2) = NY + 2
         HOWMANY_STRIDE_C(1) = 1
         HOWMANY_STRIDE_C(2) = (NXP + 1)*(NZ + 2)
-        CALL DFFTW_PLAN_GURU_DFT(FFTW_Z_TO_F_PLAN, 1, NZ, NXP+1, NXP+1
-     *        2, HOWMANY_N, HOWMANY_STRIDE_C, HOWMANY_STRIDE_C,
-     *        VV(0,0,0), VV(0,0,0),
-     *        FFTW_FORWARD, FFTW_PATIENT)
-        CALL DFFTW_PLAN_GURU_DFT(FFTW_Z_TO_P_PLAN, 1, NZ,
-     *        1, 1, 2, HOWMANY_N, HOWMANY_STRIDE_C, HOWMANY_STRIDE_C,
-     *        VV(0,0,0), VV(0,0,0),
-     *        FFTW_FORWARD, FFTW_PATIENT)
+    !     CALL DFFTW_PLAN_GURU_DFT(FFTW_Z_TO_F_PLAN, 1, NZ, NXP+1, NXP+1
+    !  *        2, HOWMANY_N, HOWMANY_STRIDE_C, HOWMANY_STRIDE_C,
+    !  *        VV(0,0,0), VV(0,0,0),
+    !  *        FFTW_FORWARD, FFTW_PATIENT)
+    !     CALL DFFTW_PLAN_GURU_DFT(FFTW_Z_TO_P_PLAN, 1, NZ,
+    !  *        1, 1, 2, HOWMANY_N, HOWMANY_STRIDE_C, HOWMANY_STRIDE_C,
+    !  *        VV(0,0,0), VV(0,0,0),
+    !  *        FFTW_FORWARD, FFTW_PATIENT)
     !     CALL DFFTW_PLAN_DFT_1D(FFTW_Z_TO_F_PLAN, NZ,
-    !  *        FIELD, CFIELD, FFTW_MEASURE)
+    !  *        VV, VV, FFTW_FORWARD, FFTW_MEASURE)
     !     CALL DFFTW_PLAN_DFT_1D(FFTW_Z_TO_P_PLAN, NZ,
-    !  *        FIELD, CFIELD, FFTW_MEASURE)
+    !  *        VV, VV, FFTW_BACKWARD, FFTW_MEASURE)
+        CALL DFFTW_PLAN_GURU_DFT(FFTW_Z_TO_F_PLAN, 1, NZ, NXP+1, NXP+1,
+     *       1, NXP, 1, 1, VV, VV, FFTW_FORWARD, FFTW_MEASURE)
+        CALL DFFTW_PLAN_GURU_DFT(FFTW_Z_TO_P_PLAN, 1, NZ, NXP+1, NXP+1,
+     *       1, NXP, 1, 1, VV, VV, FFTW_BACKWARD, FFTW_MEASURE)
     !     CALL FFTWND_F77_CREATE_PLAN(FFTW_Z_TO_F_PLAN, 1, NZ,
     !  *       FFTW_FORWARD,  FFTW_MEASURE + FFTW_IN_PLACE )
     !     CALL FFTWND_F77_CREATE_PLAN(FFTW_Z_TO_P_PLAN, 1, NZ,
