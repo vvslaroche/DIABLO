@@ -1622,6 +1622,7 @@ c$$$
 
       WRITE(*,*) 'CHECKPOINT 1.2'
       WRITE(*,*) TEMP_FFT(0,0,0)
+      WRITE(*,*) XY2ZY_1
       CALL MPI_ALLTOALL(TEMP_FFT(0,0,0), 1, XY2ZY_1,
      *       VV(0,0,0), 1, XY2ZY_2, MPI_COMM_Z, IERROR)
 

@@ -1565,6 +1565,7 @@ c$$$
       !write(110+RANK) TMP(0:NX/2,0:NZP-1,1)
 
       WRITE(*,*) TMP_1A(0,0,1)
+      WRITE(*,*) XY2ZY_1
       STOP 'exiting'
       DO J=JMIN,JMAX
          call mpi_alltoall(TMP_1A(0,0,J),1,XY2ZY_1,TMP2,1,XY2ZY_2,
