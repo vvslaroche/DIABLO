@@ -870,8 +870,6 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-----|
       INCLUDE 'header'
 
       INTEGER bl(2),disp(2),types(2)
-      INTEGER, DIMENSION(3) :: SIZES, SUBSIZES, STARTS
-      INTEGER TYPE_CFP, TYPE_CFF
 
       INTEGER IPROCS,TYPE1,COMM_CART
       INTEGER DIMS(2),PERDIM(2)
@@ -882,14 +880,14 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-----|
       COMPLEX*16 TMP(0:NX/2,0:NZP+1,0:NY+1)
       CHARACTER*55 FNAME
 
-      INTEGER         FFTW_FORWARD,      FFTW_BACKWARD,
-     *                FFTW_ESTIMATE,     FFTW_MEASURE,
-     *                FFTW_OUT_OF_PLACE, FFTW_IN_PLACE,
-     *                FFTW_USE_WISDOM,   FFTW_THREADSAFE
-      PARAMETER(      FFTW_FORWARD=-1,      FFTW_BACKWARD=1,
-     *                FFTW_ESTIMATE=0,      FFTW_MEASURE=1,
-     *                FFTW_OUT_OF_PLACE=0,  FFTW_IN_PLACE=8,
-     *                FFTW_USE_WISDOM=16,   FFTW_THREADSAFE=128 )
+    !   INTEGER         FFTW_FORWARD,      FFTW_BACKWARD,
+    !  *                FFTW_ESTIMATE,     FFTW_MEASURE,
+    !  *                FFTW_OUT_OF_PLACE, FFTW_IN_PLACE,
+    !  *                FFTW_USE_WISDOM,   FFTW_THREADSAFE
+    !   PARAMETER(      FFTW_FORWARD=-1,      FFTW_BACKWARD=1,
+    !  *                FFTW_ESTIMATE=0,      FFTW_MEASURE=1,
+    !  *                FFTW_OUT_OF_PLACE=0,  FFTW_IN_PLACE=8,
+    !  *                FFTW_USE_WISDOM=16,   FFTW_THREADSAFE=128 )
 
 
 
@@ -906,7 +904,6 @@ c$$$      INTEGER(C_INTPTR_T) NZP,iNZ,alloc_local
       CALL MPI_COMM_SIZE(MPI_COMM_WORLD,IPROCS,IERROR)
       CALL MPI_COMM_RANK(MPI_COMM_WORLD,RANK,IERROR)
 
-      ! NPROCY=2
       IF (NPROCS.NE.IPROCS) THEN
          IF (RANK.EQ.0) WRITE(*,*) ' NPROCS is not equal to',
      &        ' the number of processes which we run on. '
@@ -920,7 +917,6 @@ c$$$      INTEGER(C_INTPTR_T) NZP,iNZ,alloc_local
          CALL MPI_FINALIZE(ierror)
          stop
       END IF
-      ! NPROCSZ=NPROCS/NPROCY
 
       DIMS(2)=NPROCY
       DIMS(1)=NPROCZ

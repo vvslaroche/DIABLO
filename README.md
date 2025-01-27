@@ -6,7 +6,7 @@ A brief description of DIABLO
 diablo.f        Main program, define grid, read/write flow, statistics
 input.dat       Set the desired flow parameters
 fft.f           Wrapper for calls to FFTW
-mpi.f 		 Subroutines for MPI parallelization
+mpi.f 		Subroutines for MPI parallelization
 grid_def        Define the dimensions of the grid
 header          Defines all variables and common blocks
 

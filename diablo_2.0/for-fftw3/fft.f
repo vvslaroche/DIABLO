@@ -58,21 +58,9 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
       INCLUDE 'fftw3.f'
       INTEGER I,J,K
 
-      INTEGER HOWMANY_N(2), HOWMANY_STRIDE_R(2), HOWMANY_STRIDE_C(2)
       REAL*8      V  (0:NX+1,0:NZP+1,0:NY+1)
       COMPLEX*16  VV (0:NXP ,0:NZ +1,0:NY+1)
       COMPLEX*16  TMP(0:NX/2,0:NZP+1,0:NY+1)
-
-    !   INTEGER         FFTW_FORWARD,      FFTW_BACKWARD,
-    !  *                FFTW_ESTIMATE,     FFTW_MEASURE,
-    !  *                FFTW_OUT_OF_PLACE, FFTW_IN_PLACE,
-    !  *                FFTW_USE_WISDOM,   FFTW_THREADSAFE,
-    !  *                FFTW_PATIENT,      FFTW_DESTROY_INPUT
-    !   PARAMETER(      FFTW_FORWARD=-1,      FFTW_BACKWARD=1,
-    !  *                FFTW_ESTIMATE=0,      FFTW_MEASURE=1,
-    !  *                FFTW_OUT_OF_PLACE=0,  FFTW_IN_PLACE=8,
-    !  *                FFTW_USE_WISDOM=16,   FFTW_THREADSAFE=128,
-    !  *                FFTW_PATIENT=1,       FFTW_DESTROY_INPUT=1 )
 
       IF (RANK.EQ.0) 
      &     WRITE(6,*) 'Initializing FFTW package.'
@@ -82,32 +70,10 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
       EPS= 0.000000001
 
       IF (NUM_PER_DIR .GT. 0) THEN
-         HOWMANY_N(1) = NZP
-         HOWMANY_N(2) = NY + 2
-         HOWMANY_STRIDE_R(1) = NX + 2
-         HOWMANY_STRIDE_R(2) = (NZP + 2)*(NX + 2)
-         HOWMANY_STRIDE_C(1) = INT(NX/2 + 1)
-         HOWMANY_STRIDE_C(2) = INT(NX/2 + 1)*(NZP + 2)
-    !      CALL DFFTW_PLAN_GURU_DFT_R2C(FFTW_X_TO_F_PLAN, 1, NX, 1, 1,
-    !  *        2, HOWMANY_N, HOWMANY_STRIDE_R, HOWMANY_STRIDE_C,
-    !  *        V(0,0,0), TEMP_FFT(0,0,0),
-    !  *        FFTW_PATIENT + FFTW_DESTROY_INPUT)
-    !      CALL DFFTW_PLAN_GURU_DFT_C2R(FFTW_X_TO_P_PLAN, 1, NX, 1, 1,
-    !  *        2, HOWMANY_N, HOWMANY_STRIDE_C, HOWMANY_STRIDE_R,
-    !  *        TEMP_FFT(0,0,0), V(0,0,0),
-    !  *        FFTW_PATIENT + FFTW_DESTROY_INPUT)
-    !      CALL DFFTW_PLAN_DFT_R2C_1D(FFTW_X_TO_F_PLAN, NX,
-    !  *        V, TMP, FFTW_MEASURE)
-    !      CALL DFFTW_PLAN_DFT_C2R_1D(FFTW_X_TO_P_PLAN, NX,
-    !  *        TMP, V, FFTW_MEASURE)
-         CALL DFFTW_PLAN_GURU_DFT_R2C(FFTW_X_TO_F_PLAN, 1, NX, 1, 1,
-     *        1, NZP, NX+2, NX/2+1, V, TMP, FFTW_MEASURE)
-         CALL DFFTW_PLAN_GURU_DFT_C2R(FFTW_X_TO_P_PLAN, 1, NX, 1, 1,
-     *        1, NZP, NX/2+1, NX+2, TMP, V, FFTW_MEASURE)
-    !      CALL RFFTWND_F77_CREATE_PLAN(FFTW_X_TO_F_PLAN, 1, NX,      
-    !  *        FFTW_FORWARD,  FFTW_MEASURE  ) 
-    !      CALL RFFTWND_F77_CREATE_PLAN(FFTW_X_TO_P_PLAN, 1, NX,            
-    !  *        FFTW_BACKWARD,  FFTW_MEASURE  ) 
+        CALL DFFTW_PLAN_GURU_DFT_R2C(FFTW_X_TO_F_PLAN, 1, NX, 1, 1,
+     *       1, NZP, NX+2, NX/2+1, V, TMP, FFTW_MEASURE)
+        CALL DFFTW_PLAN_GURU_DFT_C2R(FFTW_X_TO_P_PLAN, 1, NX, 1, 1,
+     *       1, NZP, NX/2+1, NX+2, TMP, V, FFTW_MEASURE)
         RNX=1.0*NX
         DO I=0,NXPP-1
           KX(I)=(I+NXPP*RANKZ)*(2.*PI)/LX
@@ -117,30 +83,10 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
       END IF
 
       IF (NUM_PER_DIR .GT. 1) THEN
-        HOWMANY_N(1) = NXP
-        HOWMANY_N(2) = NY + 2
-        HOWMANY_STRIDE_C(1) = 1
-        HOWMANY_STRIDE_C(2) = (NXP + 1)*(NZ + 2)
-    !     CALL DFFTW_PLAN_GURU_DFT(FFTW_Z_TO_F_PLAN, 1, NZ, NXP+1, NXP+1
-    !  *        2, HOWMANY_N, HOWMANY_STRIDE_C, HOWMANY_STRIDE_C,
-    !  *        VV(0,0,0), VV(0,0,0),
-    !  *        FFTW_FORWARD, FFTW_PATIENT)
-    !     CALL DFFTW_PLAN_GURU_DFT(FFTW_Z_TO_P_PLAN, 1, NZ,
-    !  *        1, 1, 2, HOWMANY_N, HOWMANY_STRIDE_C, HOWMANY_STRIDE_C,
-    !  *        VV(0,0,0), VV(0,0,0),
-    !  *        FFTW_FORWARD, FFTW_PATIENT)
-    !     CALL DFFTW_PLAN_DFT_1D(FFTW_Z_TO_F_PLAN, NZ,
-    !  *        VV, VV, FFTW_FORWARD, FFTW_MEASURE)
-    !     CALL DFFTW_PLAN_DFT_1D(FFTW_Z_TO_P_PLAN, NZ,
-    !  *        VV, VV, FFTW_BACKWARD, FFTW_MEASURE)
         CALL DFFTW_PLAN_GURU_DFT(FFTW_Z_TO_F_PLAN, 1, NZ, NXP+1, NXP+1,
      *       1, NXP, 1, 1, VV, VV, FFTW_FORWARD, FFTW_MEASURE)
         CALL DFFTW_PLAN_GURU_DFT(FFTW_Z_TO_P_PLAN, 1, NZ, NXP+1, NXP+1,
      *       1, NXP, 1, 1, VV, VV, FFTW_BACKWARD, FFTW_MEASURE)
-    !     CALL FFTWND_F77_CREATE_PLAN(FFTW_Z_TO_F_PLAN, 1, NZ,
-    !  *       FFTW_FORWARD,  FFTW_MEASURE + FFTW_IN_PLACE )
-    !     CALL FFTWND_F77_CREATE_PLAN(FFTW_Z_TO_P_PLAN, 1, NZ,
-    !  *       FFTW_BACKWARD, FFTW_MEASURE + FFTW_IN_PLACE )
         RNZ=1.0*NZ
         DO K=0,NKZ
           KZ(K)=K*(2.*PI)/LZ
@@ -157,15 +103,16 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
       IF (RANK.EQ.0) 
      &     write(*,*) 'In fft: NKX,TNKZ: ',NKX,TNKZ
 
+c --- needs to be updated to fftw3
     !   IF (NUM_PER_DIR .GT. 2) THEN
     !     CALL FFTWND_F77_CREATE_PLAN(FFTW_Y_TO_F_PLAN, 1, NY,
     !  *       FFTW_FORWARD,  FFTW_MEASURE + FFTW_IN_PLACE )
     !     CALL FFTWND_F77_CREATE_PLAN(FFTW_Y_TO_P_PLAN, 1, NY,
     !  *       FFTW_BACKWARD, FFTW_MEASURE + FFTW_IN_PLACE )
     !     RNY=1.0*NY
-	  ! KY(0) = 0.
-	  ! KY2(0) = 0.
-	  ! CIKY(0) = (0.0,0.0)
+	  !     KY(0) = 0.
+	  !     KY2(0) = 0.
+	  !     CIKY(0) = (0.0,0.0)
     !     DO J=1,NKY
     !       KY(J)=J*(2.*PI)/LY
     !     END DO
@@ -212,6 +159,7 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
 C Looping over the planes of interest, simply perform a real -> complex
 C transform in place in the big storage array, scaling appropriately.
 
+c --- needs to be updated to fftw3
     !   DO J=JMIN,JMAX
     !    CALL RFFTWND_F77_REAL_TO_COMPLEX(FFTW_X_TO_F_PLAN,(KMAX-KMIN+1),
     !  *    U(0,KMIN,J), 1, NX+2, CU(0,KMIN,J), 1, NX/2+1)
@@ -239,6 +187,7 @@ C Looping over the planes of interest, simply set the higher wavenumbers to
 C zero and then perform a complex -> real transform in place in the big
 C storage array.
 
+c --- needs to be updated to fftw3
     !   DO J=JMIN,JMAX
     !     DO K=KMIN,KMAX
     !       DO I=NKX+1,NX/2
@@ -284,6 +233,7 @@ C temporary storage variable, perform a complex -> complex transform in the
 C y direction, then put the data back into the big storage array, packing the
 C data towards J=0 and scaling appropriately.
 
+c --- needs to be updated to fftw3
     !   CALL FFT_XZ_TO_FOURIER(U,CU,0,NYM)
     !   DO I=0,NKX
     !     DO K=0,TNKZ
@@ -322,6 +272,7 @@ C complex transform in the y direction, then put the data back into the big
 C storage array.  Finally, transform in the X & Z directions using
 C FFT_XZ_TO_PHYSICAL.
 
+c --- needs to be updated to fftw3
     !   DO I=0,NKX
     !     DO K=0,TNKZ 
     !       DO J=0,NKY
