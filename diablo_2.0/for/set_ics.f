@@ -247,11 +247,9 @@ C particular problem of interest
         WRITE(*,*) 'WARNING, unsupported IC_TYPE in CREATE_FLOW'
         END IF
 
-      WRITE(*,*) 'CHECKPOINT 1'
       S1(:,:,:)=TH(:,:,:,N)
       CALL FFT_XZ_TO_FOURIER(S1,CS1,0,NY+1)
       CTH(:,:,:,N)=CS1(:,:,:)
-      WRITE(*,*) 'CHECKPOINT 2'
 
       END IF
       END DO
