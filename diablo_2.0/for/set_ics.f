@@ -71,7 +71,7 @@ C Tanh shear layer
            END DO
          END DO
        END DO
-      else if (IC_TYPE.eq.4) then
+      else if ((IC_TYPE.eq.4).or.(IC_TYPE.eq.5)) then
 C tanh shear profile with primary mode kick in X
        DO J=0,NY
          DO K=0,NZP-1
@@ -258,6 +258,23 @@ C particular problem of interest
            END DO
          END DO
        END DO
+      ELSE IF (IC_TYPE.eq.5) then
+! (Phytoplankton) tanh profiles, with separation 
+! TH=2,4,6... are P; TH=3,5,7... are N
+        DO K=0,NZP-1
+          DO I=0,NXM
+            DO J=1,NY
+              IF (N.eq.1) THEN
+                TH(I,K,J,N)=TH_COEFF(N)*TANH(R(N)
+     &            *(GYF(J)-TH_COEFF(N)*TH_SHIFT(N)))
+              ELSE
+                TH(I,K,J,N)=(TH_COEFF(N)*TANH(R(N)
+     &            *(GYF(J)-TH_COEFF(N)*TH_SHIFT(N))) + 1.0)/2.0
+              END IF
+            END DO
+          END DO
+        END DO
+
        ELSE
         WRITE(*,*) 'WARNING, unsupported IC_TYPE in CREATE_FLOW'
         END IF
