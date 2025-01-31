@@ -4,5 +4,5 @@
       PARAMETER (NX=128)
       PARAMETER (NY=65)
       PARAMETER (NZ=16)
-      PARAMETER (N_TH=1)
+      PARAMETER (N_TH=3)
 !----*|--.---------.---------.---------.---------.---------.---------.-|-------|
