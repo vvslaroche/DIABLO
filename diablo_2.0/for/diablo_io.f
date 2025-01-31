@@ -35,6 +35,8 @@ C    CURRENT_VERSION number to make obsolete previous input files!)
       READ(11,*)
       READ(11,*) VERBOSITY, SAVE_FLOW_INT, SAVE_STATS_INT, MOVIE
       READ(11,*)
+      READ(11,*) BINNING, NBINS, BINMIN, BINMAX
+      READ(11,*)
 ! Read in the parameters for the N_TH scalars
       DO N=1,N_TH
         READ(11,*)
@@ -57,7 +59,7 @@ C If we are using MPI, then Initialize the MPI Variables
 C Check compatibility
       IF ((USE_MPI).AND.(NUM_PER_DIR.eq.3)) THEN
         WRITE(6,*) 'ERROR: periodic.f isnt parallelized in MPI'
-        pause
+        STOP
       END IF
 
       IF (RANK.EQ.0) THEN
