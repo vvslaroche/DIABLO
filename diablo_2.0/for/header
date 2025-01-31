@@ -274,6 +274,7 @@
       REAL*8 THBAR(0:NY+1,1:N_TH),THRMS_B(1:N_TH)
      &       ,THRMS(0:NY+1,1:N_TH),THME(0:NY+1,1:N_TH)
       REAL*8 THV(0:NY+1,1:N_TH),DTHDY(0:NY+1,1:N_TH)
+      REAL*8 THTH(0:NY+1,1:N_TH), RXN_TERM(0:NY+1,1:N_TH)
       REAL*8 PE_DISS(0:NY+1,1:N_TH)
 
 ! Variables for tkebudget
@@ -306,3 +307,11 @@
       REAL*8 DELTABIN,BINMAX,BINMIN
 
       COMMON /PDF_VARS/ NBINS,BINLABEL,DELTABIN,BINMAX,BINMIN,BINNING
+
+!----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+! Phytoplankton parameters
+!----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+      REAL*8 DEATH_GROWTH, FOLD_DEPTH, N_SAT
+      REAL*8 R(1:N_TH), DA(1:N_TH), TH_COEFF(1:N_TH), TH_SHIFT(1:N_TH)
+      COMMON /PHYTOPLANKTON_VARS/
+     &     DEATH_GROWTH, FOLD_DEPTH, N_SAT, R, DA, TH_COEFF, TH_SHIFT
