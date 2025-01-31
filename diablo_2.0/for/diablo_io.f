@@ -14,7 +14,7 @@ C Read input file.
 C   (Note - if you change the following section of code, update the
 C    CURRENT_VERSION number to make obsolete previous input files!)
 
-      CURRENT_VERSION=2.0
+      CURRENT_VERSION=2.1
       READ(11,*)
       READ(11,*)
       READ(11,*)
@@ -37,12 +37,15 @@ C    CURRENT_VERSION number to make obsolete previous input files!)
       READ(11,*)
       READ(11,*) BINNING, NBINS, BINMIN, BINMAX
       READ(11,*)
+      READ(11,*) DEATH_GROWTH, FOLD_DEPTH, N_SAT
 ! Read in the parameters for the N_TH scalars
       DO N=1,N_TH
         READ(11,*)
         READ(11,*) CREATE_NEW_TH(N)
         READ(11,*)
         READ(11,*) RI(N), PR(N)
+        READ(11,*)
+        READ(11,*) DA(N), R(N), TH_COEFF(N), TH_SHIFT(N)
       END DO
 
 C If we are using MPI, then Initialize the MPI Variables
