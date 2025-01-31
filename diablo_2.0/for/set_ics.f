@@ -71,6 +71,21 @@ C Tanh shear layer
            END DO
          END DO
        END DO
+      else if (IC_TYPE.eq.4) then
+C tanh shear profile with primary mode kick in X
+       DO J=0,NY
+         DO K=0,NZP-1
+           DO I=0,NXM
+             U1(I,K,J)=TANH(GYF(J))
+             U2(I,K,J)=0.d0
+             U3(I,K,J)=0.d0
+             U1(I,K,J)=U1(I,K,J)-0.01*2.0
+     &         *COS(2.0*PI*GX(I)/LX)*TANH(GYF(J))/COSH(GYF(J))
+             U2(I,K,J)=U2(I,K,J)+0.01*2.0
+     &         *2.0*PI/LX*SIN(2.0*PI*GX(I)/LX)/COSH(GYF(J))
+           END DO
+         END DO
+       END DO
       else
         WRITE(*,*) 'WARNING, unsupported IC_TYPE in CREATE_FLOW'
       end if
@@ -234,7 +249,7 @@ C particular problem of interest
            END IF
          END DO
         END DO
-        ELSE IF (IC_TYPE.eq.3) then
+        ELSE IF ((IC_TYPE.eq.3).or.(IC_TYPE.eq.4)) then
 ! Tanh profile 
        DO K=0,NZP-1
          DO I=0,NXM
