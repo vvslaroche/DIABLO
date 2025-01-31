@@ -42,8 +42,6 @@ C    CURRENT_VERSION number to make obsolete previous input files!)
         READ(11,*)
         READ(11,*) CREATE_NEW_TH(N)
         READ(11,*)
-        READ(11,*) FILTER_TH(N), FILTER_INT(N)
-        READ(11,*)
         READ(11,*) RI(N), PR(N)
       END DO
 
