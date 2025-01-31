@@ -8,7 +8,7 @@ C TIME_AD_METH
 C LES:   LES_MODEL_TYPE
                1            
 C ICs:    IC_TYPE,    KICK
-              3       0.1
+              5       0.1
 C Rotation:  I_RO (or Coriolis parameter, f)
                0.0    
 C Upward vertical vector components, GRAV_X, GRAV_Y, GRAV_Z
@@ -33,6 +33,18 @@ C BCs: TH_BC_YMIN(1), TH_BC_YMIN_C1(1), TH_BC_YMIN_C2(1), TH_BC_YMIN_C3(1)
 C BCs: TH_BC_YMAX(1), TH_BC_YMAX_C1(1), TH_BC_YMAX_C2(1), TH_BC_YMAX_C3(1)
            1           0.0             0.0           0.0
 C Background scalar gradients, DRHODX(1), DRHODZ(1)
+           0.0         0.0 
+C BCs: TH_BC_YMIN(2), TH_BC_YMIN_C1(2), TH_BC_YMIN_C2(2), TH_BC_YMIN_C3(2)
+           1           0.0             0.0           0.0
+C BCs: TH_BC_YMAX(2), TH_BC_YMAX_C1(2), TH_BC_YMAX_C2(2), TH_BC_YMAX_C3(2)
+           1           0.0             0.0           0.0
+C Background scalar gradients, DRHODX(2), DRHODZ(2)
+           0.0         0.0 
+C BCs: TH_BC_YMIN(3), TH_BC_YMIN_C1(3), TH_BC_YMIN_C2(3), TH_BC_YMIN_C3(3)
+           1           0.0             0.0           0.0
+C BCs: TH_BC_YMAX(3), TH_BC_YMAX_C1(3), TH_BC_YMAX_C2(3), TH_BC_YMAX_C3(3)
+           1           0.0             0.0           0.0
+C Background scalar gradients, DRHODX(3), DRHODZ(3)
            0.0         0.0 
 
 
