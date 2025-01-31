@@ -2809,3 +2809,155 @@ C Now, Apply BC to mean
 
 
 
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+      SUBROUTINE BUOYANCY_PDF_CHAN()
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+C Here the buoyancy pdf is computed using a rescaled histogram for a
+C single snapshot of the complete 3D flow field and then written to file
+
+      include 'header'
+
+      integer i,j,k,n
+      real*8 bins(nbins+1),dbins(nbins)
+      integer testhist(nbins)
+      real*8 testhist_rescaled(nbins),counts(nbins)
+      character*55 fname
+      character*20 gname
+      real*8 Diagbins(1:nbins)
+
+ ! bin variables
+      deltabin=(binmax-binmin)/real(nbins)
+      
+! generate bin edge values
+      do i=1,nbins+1
+         bins(i)=binmin+real(i-1)*deltabin
+      end do
+      
+! generate bin edge values
+      do i=1,nbins+1
+         bins(i)=binmin+real(i-1)*deltabin
+      end do
+      
+! calculate bin widths
+      do i=1,nbins
+         dbins(i)=bins(i+1)-bins(i)
+      end do
+      
+! zero initial histogram matrices
+      do i=1,nbins
+         testhist(i)=0
+         testhist_rescaled(i)=0.d0
+         counts(i)=0.d0
+      end do
+
+! calculate buoyancy histogram over (x,z) directions at each height y
+! and rescale by delta(y), the height of the layer
+
+! first do edge values
+      do i=0,nxm
+         do k=0,nzp-1
+            binlabel=floor((th(i,k,1,1)-binmin)/deltabin)+1
+            testhist(binlabel)=testhist(binlabel)+1
+         end do
+      end do
+
+      do i=1,nbins
+         testhist_rescaled(i)=real(testhist(i))/dbins(i)
+         counts(i)=counts(i)+testhist_rescaled(i)*dyf(1)/2.d0
+         testhist(i)=0
+      end do
+
+      do i=0,nxm
+         do k=0,nzp-1
+            binlabel=floor((th(i,k,ny,1)-binmin)/deltabin)+1
+            testhist(binlabel)=testhist(binlabel)+1
+         end do
+      end do
+
+      do i=1,nbins
+         testhist_rescaled(i)=real(testhist(i))/dbins(i)
+         counts(i)=counts(i)+testhist_rescaled(i)*dyf(ny)/2.d0
+         testhist(i)=0
+      end do
+
+! do interior points      
+      do j=2,ny-1
+         ! bin data
+         do i=0,nxm
+            do k=0,nzp-1
+               binlabel=floor((th(i,k,j,1)-binmin)/deltabin)+1
+               testhist(binlabel)=testhist(binlabel)+1
+            end do
+         end do
+         ! rescale binned data to account for varying bin widths
+         ! and store in counts for the layer contribution
+         ! also rezero testhist for next layer  
+         do i=1,nbins
+            testhist_rescaled(i)=real(testhist(i))/dbins(i)
+            counts(i)=counts(i)+testhist_rescaled(i)*dy(j)
+            testhist(i)=0
+         end do
+      end do
+
+!     sum resulting counts from all mpi processors
+      if (use_mpi) then
+      call mpi_allreduce(mpi_in_place,counts,nbins,
+     &        MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,ierror)
+      end if
+!      write(*,*) 'gathered all data from all processors'
+
+#ifdef HDF5
+! write out resulting rescaled histogram to hdf5 file
+      fname='buoypdf.h5'
+
+      gname='time'
+      call WriteHDF5_real(fname,gname,TIME)
+!      write(*,*) 'time written to buoypdf.h5'
+      
+      ! only need to write from one process  
+      IF ((RANKZ.eq.0).and.(RANKY.eq.0)) then
+!         write(*,*) 'starting write to buoypdf.h5'
+!         do j=1,nbins
+!            write(*,*) 'bins,dbins,counts=',bins(j),dbins(j),
+!     &           counts(j)
+!         end do
+         gname='bins'
+         Diagbins=bins(1:nbins)
+         call WriteBinsH5(fname,bins,dbins,counts)
+!         write(*,*) 'bin locations written to buoypdf.h5'
+
+!         write(*,*) 'binned data written to file'
+      END IF
+
+      if (use_mpi) then
+         call mpi_barrier(MPI_COMM_WORLD,ierror)
+      end if
+         
+#else      
+! write out resulting rescaled histogram to text file
+      ! only need to write from one process
+      if ((RANKZ.eq.0).and.(RANKY.eq.0)) then
+      if (use_mpi) then
+         fname='buoypdf'//trim(mpi_io_num)//'.txt'
+      else
+         fname='buoypdf.txt'
+      end if
+      
+      open(15,file=fname,form='formatted',status='unknown')
+      write(15,*) time_step,time,delta_t
+      do i=1,nbins
+         write(15,151) i,bins(i),dbins(i),counts(i)
+      end do
+
+ 151  format(I4,' ',3(F20.9,' '))
+
+      end if
+#endif
+
+      do i=1,nbins
+         counts(i)=0.d0
+         testhist_rescaled(i)=0.d0
+         testhist(i)=0
+      end do
+
+      END SUBROUTINE
