@@ -38,6 +38,7 @@ C    CURRENT_VERSION number to make obsolete previous input files!)
       READ(11,*) BINNING, NBINS, BINMIN, BINMAX
       READ(11,*)
       READ(11,*) DEATH_GROWTH, FOLD_DEPTH, N_SAT
+      READ(11,*)
 ! Read in the parameters for the N_TH scalars
       DO N=1,N_TH
         READ(11,*)
