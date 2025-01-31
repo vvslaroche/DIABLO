@@ -579,6 +579,12 @@ C Apply Boundary conditions to velocity field
       END IF
 #endif
 
+! While buoyancy is in physical space, calculate its pdf (call separate
+! subroutine
+      if ((BINNING).and.(N.eq.1)) then
+        call BUOYANCY_PDF_CHAN()
+      end if
+
 ! Convert back to Fourier space
       S1(:,:,:)=TH(:,:,:,N)
       CALL FFT_XZ_TO_FOURIER(S1,CS1,0,NY+1)
