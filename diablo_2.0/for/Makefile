@@ -27,7 +27,7 @@ PARALLEL = TRUE
 # Option to enable the LES model (loads the required variables into memory)
 LES = FALSE
 
-# Option to complile with the HDF5 libarary
+# Option to compile with the HDF5 libarary
 HDF5 = TRUE
 # **********    END of user definitions ************
 
