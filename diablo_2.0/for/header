@@ -301,8 +301,8 @@
 !----*|--.---------.---------.---------.---------.---------.---------.-|-------|
 ! Binning parameters for pdf calculation
 !----*|--.---------.---------.---------.---------.---------.---------.-|-------|
-     LOGICAL BINNING
-     INTEGER NBINS,BINLABEL
-     REAL*8 DELTABIN,BINMAX,BINMIN
+      LOGICAL BINNING
+      INTEGER NBINS,BINLABEL
+      REAL*8 DELTABIN,BINMAX,BINMIN
 
-     COMMON /PDF_VARS/ NBINS,BINLABEL,DELTABIN,BINMAX,BINMIN,BINNING
+      COMMON /PDF_VARS/ NBINS,BINLABEL,DELTABIN,BINMAX,BINMIN,BINNING
