@@ -132,14 +132,12 @@
       LOGICAL CREATE_NEW_TH(1:N_TH), BACKGROUND_GRAD(1:N_TH)
       INTEGER NUM_READ_TH
       INTEGER READ_TH_INDEX(1:N_TH)
-      LOGICAL FILTER_TH(1:N_TH)
-      INTEGER FILTER_INT(1:N_TH)
       INTEGER JSTART_TH(1:N_TH),JEND_TH(1:N_TH)
 
       COMMON /SCALAR_VARS/
      &          RI,PR,JSTART_TH, JEND_TH, NUM_READ_TH,
-     &          FILTER_INT,READ_TH_INDEX,
-     &          CREATE_NEW_TH, FILTER_TH, BACKGROUND_GRAD 
+     &          READ_TH_INDEX,
+     &          CREATE_NEW_TH, BACKGROUND_GRAD 
 
 !----*|--.---------.---------.---------.---------.---------.---------.-|-------|! Parameters for oscillatory pressure forcing
 !----*|--.---------.---------.---------.---------.---------.---------.-|-------|
