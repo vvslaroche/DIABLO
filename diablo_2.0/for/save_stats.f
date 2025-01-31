@@ -513,6 +513,44 @@ C Apply Boundary conditions to velocity field
       do j=1,NY
       thv(j,n)=thsum(j)/(float(NZ)*float(NX))
       end do
+! Compute P'N' for phytoplankton-nutrient model
+! assuming TH(2:end) are alternating P and N
+! The output variable will only have meaning for TH=2,4,6,...
+      if ((n.ne.1).and.(mod(n,2).eq.0)) then
+        do j=1,NY
+          thsum(j)=0.
+        do k=0,NZP-1
+        do i=0,NXM
+         thsum(j)=thsum(j)+(TH(i,k,j,n)-thme(j,n))
+     +    *(TH(i,k,j,n+1)-thme(j,n+1))
+        end do
+        end do
+        end do
+        call mpi_allreduce(mpi_in_place,thsum,(NY+2),
+     &     MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_Z,ierror)
+        do j=1,NY
+        thth(j,n)=thsum(j)/(float(NZ)*float(NX))
+        end do
+      end if
+! Compute overbar{P*N/(N+N_SAT)} for phytoplankton-nutrient model
+! assuming TH(2:end) are alternating P and N
+! The output variable will only have meaning for TH=2,4,6,...
+      if (n.ne.1) then
+        do j=1,NY
+          thsum(j)=0.
+        do k=0,NZP-1
+        do i=0,NXM
+         thsum(j)=thsum(j)+TH(i,k,j,n)*TH(i,k,j,n+1)
+     +    /(TH(i,k,j,n+1)+N_SAT)
+        end do
+        end do
+        end do
+        call mpi_allreduce(mpi_in_place,thsum,(NY+2),
+     &     MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_Z,ierror)
+        do j=1,NY
+        rxn_term(j,n)=thsum(j)/(float(NZ)*float(NX))
+        end do
+      end if
 
 ! Get the y-derivative of the mean scalar at GY points
       do j=1,NY
@@ -631,7 +669,19 @@ C Apply Boundary conditions to velocity field
      &           //CHAR(MOD(N,100)/10+48)
      &           //CHAR(MOD(N,10)+48)
         call WriteStatH5(FNAME,gname,Diag)
- 
+
+        Diag=thth(1:NY,n)
+        gname='thth'
+     &           //CHAR(MOD(N,100)/10+48)
+     &           //CHAR(MOD(N,10)+48)
+        call WriteStatH5(FNAME,gname,Diag)
+
+        Diag=rxn_term(1:NY,n)
+        gname='rxn_term'
+     &           //CHAR(MOD(N,100)/10+48)
+     &           //CHAR(MOD(N,10)+48)
+        call WriteStatH5(FNAME,gname,Diag)
+        
       end do
 
       END IF
