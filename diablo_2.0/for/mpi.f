@@ -873,7 +873,6 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-----|
 
       INTEGER IPROCS,TYPE1,COMM_CART
       INTEGER DIMS(2),PERDIM(2)
-      INTEGER MFLAG(2)
 
       INTEGER I,J,K,XI,ZI
 
@@ -900,7 +899,6 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-----|
 
       DIMS(2)=NPROCY
       DIMS(1)=NPROCZ
-      MFLAG(:)=.FALSE.
 
       NXPP=int(NX/(2*NPROCZ))
 
