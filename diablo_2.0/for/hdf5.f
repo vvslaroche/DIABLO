@@ -1616,6 +1616,260 @@ C     Dimensions in the memory and in the file
       END SUBROUTINE WriteStatH5
 
 
+
+      
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+      SUBROUTINE WriteBinsH5(FNAME,Diagbins,Diagdbins,Diagcounts)
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+      use hdf5
+      
+      INCLUDE 'header'
+
+      CHARACTER*12 FNAME
+
+c     Dataset names
+      character(len=20) :: gname1,dname,gname2,gname3
+
+c     Identifiers
+      integer(hid_t) :: file_id, dset_id, dset_id2, dset_id3
+      integer(hid_t) :: filspace_id, filspace_id3, memspace_id
+      integer(hid_t) :: filspace_id2
+
+!     Identifiers
+      integer(hid_t) :: gid1, gid2, gid3, selspace_id
+      integer(hid_t) :: plist_id_d
+
+C     Dimensions in the memory and in the file
+      integer(hsize_t), dimension(1) :: dimsm,dimsf
+
+      integer :: rHDF5 = 1
+      integer(hsize_t),dimension(1)       :: adims
+      integer(hid_t)                      :: aid1,aid2,aid3,tspace
+
+      real*8  Diagbins (1:nbins)
+      real*8  Diagdbins (1:nbins)
+      real*8  Diagcounts (1:nbins)
+      integer NSAMP
+      logical flage
+
+      integer(hsize_t), dimension(1) :: count, offset
+      integer(hsize_t), dimension(1) :: stride, block, offset_m
+      
+      ! integer(hsize_t)  ::  my_dim
+      integer error, i, j
+
+!     *********************
+!     START DEFINITION
+!     *********************
+
+      dimsm = nbins
+      dimsf = nbins
+
+!     Stride and count for number of rows and columns in each dimension
+      stride = 1
+      count  = 1 
+
+!     Offset determined by the rank of a processor
+!      offset(1) = 0
+
+!      offset_m(1:2)=0
+!      if (RANKY.eq.0) then
+         block =  nbins
+         offset = 0
+         offset_m=0
+!      else
+!         block = (nbins-1)
+!         offset = RANKY*(nbins-1)+1
+!         offset_m=1
+!      end if
+         gname1='bins'
+         gname2='dbins'
+         gname3='counts'
+         
+!     *********************
+!     FINISH DEFINITION
+!     *********************
+
+!     Initialize interface
+      call h5open_f(error)
+
+      inquire(file=trim(FNAME),exist=flage)
+      if (.not.flage) then
+!     Create the file collectively
+         call h5fcreate_f(trim(FNAME), H5F_ACC_TRUNC_F,      
+     &        file_id, error)
+         call h5fclose_f(file_id, error)
+      end if
+!      write(*,*) 'file created collectively'
+      
+!     Open the file
+      call h5fopen_f(trim(FNAME),H5F_ACC_RDWR_F,file_id,error)
+      
+      call h5screate_f(H5S_SCALAR_F,tspace,error)
+
+! first, bin locations
+      ! Open the right group or create if it does not exist
+      adims=1
+      call h5lexists_f(file_id,"/"//trim(gname1), flage, error)
+      if (.not.flage) then
+         call h5gcreate_f(file_id,gname1, gid1, error)
+
+         call h5acreate_f(gid1,'SAMPLES',H5T_STD_I32LE,
+     &        tspace,aid1,error)
+         NSAMP=0;
+         call h5awrite_f(aid1,H5T_NATIVE_INTEGER,NSAMP,adims,error)
+         call h5aclose_f(aid1, error)
+      else
+         call h5gopen_f(file_id,"/"//trim(gname1),gid1, error)
+         
+         call h5aopen_f(gid1,'SAMPLES',aid1,error)
+         call h5aread_f(aid1,H5T_NATIVE_INTEGER,NSAMP,adims,error)
+         call h5aclose_f(aid1, error)
+      end if
+      
+      NSAMP=NSAMP+1
+
+      write(dname,'(1I0.4)') NSAMP
+
+      call h5screate_simple_f(rHDF5, dimsf, filspace_id, error)
+
+      call h5sselect_hyperslab_f (filspace_id, H5S_SELECT_SET_F, 
+     &        offset, count, error, stride, block)
+      
+      call h5aopen_f(gid1,'SAMPLES',aid1,error)
+      call h5awrite_f(aid1,H5T_NATIVE_INTEGER,NSAMP,adims,error)
+      call h5aclose_f(aid1, error)
+
+      call h5dcreate_f(gid1, dname, H5T_IEEE_F64LE,
+     &     filspace_id,dset_id, error)
+!      do j=1,nbins
+!      write(*,*) 'bins(j)=',Diagbins(j)
+!      end do
+!     Write the bin locations to file
+      call h5dwrite_f(dset_id, H5T_NATIVE_DOUBLE, 
+     +     Diagbins,dimsm, error)
+     
+      call h5acreate_f(dset_id,'Time',H5T_IEEE_F64LE,tspace,
+     &     aid1,error)
+      call h5awrite_f(aid1,H5T_IEEE_F64LE,TIME,adims,error)
+      call h5aclose_f(aid1, error)
+
+      call h5dclose_f(dset_id, error)
+
+      call h5sclose_f(filspace_id, error)
+      call h5gclose_f(gid1, error)
+
+!     next, bin widths
+
+            ! Open the right group or create if it does not exist
+      adims=1
+      call h5lexists_f(file_id,"/"//trim(gname2), flage, error)
+      if (.not.flage) then
+         call h5gcreate_f(file_id,gname2, gid2, error)
+
+         call h5acreate_f(gid2,'SAMPLES',H5T_STD_I32LE,
+     &        tspace,aid2,error)
+         NSAMP=0;
+         call h5awrite_f(aid2,H5T_NATIVE_INTEGER,NSAMP,adims,error)
+         call h5aclose_f(aid2, error)
+      else
+         call h5gopen_f(file_id,"/"//trim(gname2),gid2, error)
+
+         call h5aopen_f(gid2,'SAMPLES',aid2,error)
+         call h5aread_f(aid2,H5T_NATIVE_INTEGER,NSAMP,adims,error)
+         call h5aclose_f(aid2, error)
+      end if
+      
+      NSAMP=NSAMP+1
+
+      write(dname,'(1I0.4)') NSAMP
+      
+      call h5screate_simple_f(rHDF5, dimsf, filspace_id2, error)
+
+      call h5sselect_hyperslab_f (filspace_id2, H5S_SELECT_SET_F, 
+     &        offset, count, error, stride, block)
+      
+      call h5aopen_f(gid2,'SAMPLES',aid2,error)
+      call h5awrite_f(aid2,H5T_NATIVE_INTEGER,NSAMP,adims,error)
+      call h5aclose_f(aid2, error)
+
+      call h5dcreate_f(gid2, dname, H5T_IEEE_F64LE,
+     &     filspace_id2,dset_id2, error)
+!      do j=1,nbins
+!      write(*,*) 'dbins(j)=',Diagdbins(j)
+!      end do
+!     Write the bin widths to file
+      call h5dwrite_f(dset_id2, H5T_NATIVE_DOUBLE, 
+     +     Diagdbins,dimsm, error)
+     
+      call h5acreate_f(dset_id2,'Time',H5T_IEEE_F64LE,tspace,
+     &     aid2,error)
+      call h5awrite_f(aid2,H5T_IEEE_F64LE,TIME,adims,error)
+      call h5aclose_f(aid2, error)
+
+      call h5dclose_f(dset_id2, error)
+
+      call h5sclose_f(filspace_id2, error)
+      call h5gclose_f(gid2, error)
+
+!     finally, counts associated with each bin (note these are doubles)
+
+      ! Open the right group or create if it does not exist
+      adims=1
+      call h5lexists_f(file_id,"/"//trim(gname3), flage, error)
+      if (.not.flage) then
+         call h5gcreate_f(file_id,gname3, gid3, error)
+
+         call h5acreate_f(gid3,'SAMPLES',H5T_STD_I32LE,
+     &        tspace,aid3,error)
+         NSAMP=0;
+         call h5awrite_f(aid3,H5T_NATIVE_INTEGER,NSAMP,adims,error)
+         call h5aclose_f(aid3, error)
+      else
+         call h5gopen_f(file_id,"/"//trim(gname3),gid3, error)
+
+         call h5aopen_f(gid3,'SAMPLES',aid3,error)
+         call h5aread_f(aid3,H5T_NATIVE_INTEGER,NSAMP,adims,error)
+         call h5aclose_f(aid3, error)
+      end if
+      
+      NSAMP=NSAMP+1
+
+      write(dname,'(1I0.4)') NSAMP
+      call h5screate_simple_f(rHDF5, dimsf, filspace_id3, error)
+
+      call h5sselect_hyperslab_f (filspace_id3, H5S_SELECT_SET_F, 
+     &        offset, count, error, stride, block)
+      
+      call h5aopen_f(gid3,'SAMPLES',aid3,error)
+      call h5awrite_f(aid3,H5T_NATIVE_INTEGER,NSAMP,adims,error)
+      call h5aclose_f(aid3, error)
+
+      call h5dcreate_f(gid3, dname, H5T_IEEE_F64LE,
+     &     filspace_id3,dset_id3, error)
+!      do j=1,nbins
+!      write(*,*) 'count(j)=',Diagcounts(j)
+!      end do
+!     Write the counts to file
+      call h5dwrite_f(dset_id3, H5T_NATIVE_DOUBLE, 
+     +     Diagcounts,dimsm, error)
+     
+      call h5acreate_f(dset_id3,'Time',H5T_IEEE_F64LE,tspace,
+     &     aid3,error)
+      call h5awrite_f(aid3,H5T_IEEE_F64LE,TIME,adims,error)
+      call h5aclose_f(aid3, error)
+
+      call h5dclose_f(dset_id3, error)
+
+      call h5sclose_f(filspace_id3, error)
+      call h5gclose_f(gid3,error)
+
+! once writing is done, close group and file      
+      call h5fclose_f(file_id, error)
+      call h5close_f(error)
+
+      END SUBROUTINE WriteBinsH5
+
 c$$$
 c$$$      SUBROUTINE WriteHDF5_var_real(FNAME)
 c$$$      use hdf5
