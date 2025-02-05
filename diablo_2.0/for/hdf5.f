@@ -211,7 +211,8 @@ c$$$      ! -----------------------------
             dname="W"
          case (4:)
             call SWAPZY(TH(0,0,0,ith-3),tmp)
-            dname="TH"//CHAR(ith+45)
+            dname="TH" // CHAR(MOD(ith-3,100)/10+48)
+     &               // CHAR(MOD(ith-3,10)+48)
          end select
 
          call h5dcreate_f(gid, trim(dname), H5T_IEEE_F64LE,
