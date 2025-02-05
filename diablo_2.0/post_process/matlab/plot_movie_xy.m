@@ -19,7 +19,7 @@ k
     timename=[int2str(k)];
   end
 
-varname=['/th1_xy/' timename];
+varname=['/th01_xy/' timename];
 %varname=['/nu_t_xy/' timename];
 
 A=h5read(filename,varname);
@@ -33,8 +33,16 @@ colormap(jet(256));
 colorbar
 M(k)=getframe(gcf);
 clf;
-
 end
+close
 
 
+% saving movie code
+filename_mov=[base_dir '/movie.mp4'];
+clear v
+v = VideoWriter(filename_mov, 'MPEG-4');
+v.FrameRate = 20;
+open(v)
+writeVideo(v,M)
+close(v)
 
