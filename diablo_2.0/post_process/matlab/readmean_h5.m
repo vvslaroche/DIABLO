@@ -5,7 +5,7 @@
 % Set the run directory
 base_dir='../../KH_test';
 NY=65; % Here, NY should match the value in grid_def.all
-N_TH=1; % The number of scalars
+N_TH=3; % The number of scalars
 Re = 1000; NU=1/Re; % Enter the Reynolds number or viscosity from input.dat
 Pr=1;   kappa=NU/Pr; % Prandtl number
 RI(1:N_TH)=0.15; % Enter the richardson number for each scalar
@@ -30,6 +30,7 @@ dudy=zeros(NY,nk); dwdy=zeros(NY,nk); cp=zeros(NY,nk); shear=zeros(NY,nk);
 omega_x=zeros(NY,nk); omega_y=zeros(NY,nk); omega_z=zeros(NY,nk);
 thme=zeros(NY,nk,N_TH);dthdy=zeros(NY,nk,N_TH); thrms=zeros(NY,nk,N_TH);
 thv=zeros(NY,nk,N_TH); pe_diss=zeros(NY,nk,N_TH);
+thth=zeros(NY,nk,N_TH); rxn_term=zeros(NY,nk,N_TH);
 
 for k=1:nk
     if (k<10)
@@ -93,6 +94,10 @@ for k=1:nk
         thv(:,k)=h5read(filename,varname);
         varname=['/pe_diss' num2str(n,'%2.2d') '/' timename]; % POTENTIAL ENERGY DISSIPATION
         pe_diss(:,k)=h5read(filename,varname);
+        varname=['/thth' num2str(n,'%2.2d') '/' timename]; % POTENTIAL ENERGY DISSIPATION
+        thth(:,k)=h5read(filename,varname);
+        varname=['/rxn_term' num2str(n,'%2.2d') '/' timename]; % POTENTIAL ENERGY DISSIPATION
+        rxn_term(:,k)=h5read(filename,varname);
     end
 end
 
