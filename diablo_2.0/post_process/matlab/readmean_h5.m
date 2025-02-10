@@ -85,19 +85,19 @@ for k=1:nk
     omega_z(:,k)=h5read(filename,varname);
     for n=1:N_TH
         varname=['/thme' num2str(n,'%2.2d') '/' timename];  % MEAN BUOYANCY
-        thme(:,k)=h5read(filename,varname);
+        thme(:,k,n)=h5read(filename,varname);
         varname=['/dthdy' num2str(n,'%2.2d') '/' timename]; % MEAN BUOYANCY GRADIENTS
-        dthdy(:,k)=h5read(filename,varname);
+        dthdy(:,k,n)=h5read(filename,varname);
         varname=['/thrms' num2str(n,'%2.2d') '/' timename]; % RMS BUOYANCY
-        thrms(:,k)=h5read(filename,varname);
+        thrms(:,k,n)=h5read(filename,varname);
         varname=['/thv' num2str(n,'%2.2d') '/' timename];
-        thv(:,k)=h5read(filename,varname);
+        thv(:,k,n)=h5read(filename,varname);
         varname=['/pe_diss' num2str(n,'%2.2d') '/' timename]; % POTENTIAL ENERGY DISSIPATION
-        pe_diss(:,k)=h5read(filename,varname);
+        pe_diss(:,k,n)=h5read(filename,varname);
         varname=['/thth' num2str(n,'%2.2d') '/' timename]; % POTENTIAL ENERGY DISSIPATION
-        thth(:,k)=h5read(filename,varname);
+        thth(:,k,n)=h5read(filename,varname);
         varname=['/rxn_term' num2str(n,'%2.2d') '/' timename]; % POTENTIAL ENERGY DISSIPATION
-        rxn_term(:,k)=h5read(filename,varname);
+        rxn_term(:,k,n)=h5read(filename,varname);
     end
 end
 
