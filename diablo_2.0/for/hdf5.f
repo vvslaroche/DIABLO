@@ -424,7 +424,8 @@ c     Dimensions in the memory and in the file
          case (3)
             dname="W"
          case (4:)
-            dname="TH"//CHAR(ith+45)
+            dname="TH" // CHAR(MOD(ith-3,100)/10+48)
+     &               // CHAR(MOD(ith-3,10)+48)
          end select
 
          if ((ith.le.3).or.
