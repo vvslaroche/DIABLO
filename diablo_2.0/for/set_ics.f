@@ -265,12 +265,20 @@ C particular problem of interest
           DO I=0,NXM
             DO J=1,NY
               IF (N.eq.1) THEN
-                TH(I,K,J,N)=TH_COEFF(N)*TANH(R(N)
-     &            *(GYF(J)-TH_COEFF(N)*TH_SHIFT(N)))
-              ELSE
-                TH(I,K,J,N)=(TH_COEFF(N)*TANH(R(N)
-     &            *(GYF(J)-TH_COEFF(N)*TH_SHIFT(N))) + 1.0)/2.0
+                TH(I,K,J,N)=TANH(GYF(J))
+              ELSE IF (N.eq.2) THEN
+                TH(I,K,J,N)=1.0/COSH(10.0*(GYF(J)+2.0))
+              ELSE IF (N.eq.3) THEN
+                TH(I,K,J,N)=0.0
               END IF
+
+    !           IF (N.eq.1) THEN
+    !             TH(I,K,J,N)=TH_COEFF(N)*TANH(R(N)
+    !  &            *(GYF(J)-TH_COEFF(N)*TH_SHIFT(N)))
+    !           ELSE
+    !             TH(I,K,J,N)=(TH_COEFF(N)*TANH(R(N)
+    !  &            *(GYF(J)-TH_COEFF(N)*TH_SHIFT(N))) + 1.0)/2.0
+    !           END IF
             END DO
           END DO
         END DO

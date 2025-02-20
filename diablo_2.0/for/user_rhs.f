@@ -71,23 +71,26 @@
 !      END DO 
 
       IF (IC_TYPE.eq.5) THEN
-! Loop over phytoplankton
-      DO N=2,N_TH
+! Loop over scalars
+      DO N=1,N_TH
       DO J=JSTART,JEND
         DO K=0,NZP-1
           DO I=0,NXM
-
-            IF (mod(N,2).eq.0) THEN
-              S1(I,K,J)=DA(N)*TH(I,K,J,N)
-     &          * (exp((GYF(J)-LY/2.0)/FOLD_DEPTH)
-     &          * (TH(I,K,J,N+1)/(TH(I,K,J,N+1) + N_SAT))
-     &          - DEATH_GROWTH)
-            ELSE
-              S1(I,K,J)=-DA(N)*TH(I,K,J,N-1)
-     &          * (exp((GYF(J)-LY/2.0)/FOLD_DEPTH)
-     &          * (TH(I,K,J,N)/(TH(I,K,J,N) + N_SAT))
-     &          - DEATH_GROWTH)
+            IF ((N.eq.3).and.(GYF(J).gt.1.0)) THEN
+              S1(I,K,J)=TH(I,K,J,2)
             END IF
+
+    !         IF (mod(N,2).eq.0) THEN
+    !           S1(I,K,J)=DA(N)*TH(I,K,J,N)
+    !  &          * (exp((GYF(J)-LY/2.0)/FOLD_DEPTH)
+    !  &          * (TH(I,K,J,N+1)/(TH(I,K,J,N+1) + N_SAT))
+    !  &          - DEATH_GROWTH)
+    !         ELSE
+    !           S1(I,K,J)=-DA(N)*TH(I,K,J,N-1)
+    !  &          * (exp((GYF(J)-LY/2.0)/FOLD_DEPTH)
+    !  &          * (TH(I,K,J,N)/(TH(I,K,J,N) + N_SAT))
+    !  &          - DEATH_GROWTH)
+    !         END IF
 
           END DO
         END DO
