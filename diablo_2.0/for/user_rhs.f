@@ -76,6 +76,12 @@
       DO J=JSTART,JEND
         DO K=0,NZP-1
           DO I=0,NXM
+            IF (N.eq.1) THEN
+              S1(I,K,J)=0.0
+            END IF
+            IF (N.eq.2) THEN
+              S1(I,K,J)=0.0
+            END IF
             IF ((N.eq.3).and.(GYF(J).gt.1.0)) THEN
               S1(I,K,J)=TH(I,K,J,2)
             END IF
