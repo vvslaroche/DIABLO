@@ -85,7 +85,14 @@ C Initialize case-specific packages.
       ELSEIF (NUM_PER_DIR.EQ.1) THEN
         CALL INPUT_DUCT
         CALL CREATE_GRID_DUCT
-        CALL INIT_DUCT
+        IF (USE_MPI) THEN
+          CALL INIT_DUCT_MPI
+        ELSE
+          CALL INIT_DUCT
+        END IF
+        IF (MOVIE) THEN
+          CALL INIT_DUCT_MOVIE
+        END IF
       ELSEIF (NUM_PER_DIR.EQ.0) THEN
         CALL INPUT_CAV
         CALL CREATE_GRID_CAV
@@ -133,7 +140,9 @@ C Initialize values for reading of scalars
           READ_TH_INDEX(NUM_READ_TH)=N
         END IF
       END DO
-      IF (NUM_PER_DIR.EQ.2) THEN
+      IF (NUM_PER_DIR.EQ.1) THEN
+        CALL CREATE_TH_DUCT
+      ELSE IF (NUM_PER_DIR.EQ.2) THEN
         CALL CREATE_TH_CHAN
       ELSE IF (NUM_PER_DIR.EQ.3) THEN
         CALL CREATE_TH_PER
@@ -160,7 +169,11 @@ C Create flow.
      &       write(*,*) 'Done reading flow'
 
         IF (USE_MPI) THEN
-           CALL GHOST_CHAN_MPI
+           IF (NUM_PER_DIR.EQ.2) THEN
+              CALL GHOST_CHAN_MPI
+           ELSEIF (NUM_PER_DIR.EQ.1) THEN
+              CALL GHOST_DUCT_MPI
+           END IF
         END IF
 
 C Initialize flow.
