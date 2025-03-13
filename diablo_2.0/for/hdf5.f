@@ -613,6 +613,18 @@ c$$$      call h5aclose_f(aid, error)
       case(3)
          write(*,*) ' Error 235455. Not implemented yet! '
          stop
+         cname='z'
+
+         dimsm=NZ+2
+         dimsf=(NZ-1)*NPROCZ+1
+
+!     Stride and count for number of rows and columns in each dimension
+         stride = 1
+         count  = 1
+
+!     Offset determined by the rank of a processor
+         block  =  NZ+1
+         offset =  RANKZ*(NZ-1)
       end select
 
 
@@ -654,10 +666,17 @@ c$$$      call h5aclose_f(aid, error)
 
 
 !     Write the dataset collectively
+      IF (coord.eq.2) THEN
       call h5dread_f(dset_id, H5T_NATIVE_DOUBLE,
      +     GY,
      +     dimsm, error, file_space_id = filspace_id,
      +     mem_space_id = memspace_id) !, xfer_prp = plist_id_w)
+      ELSEIF (coord.eq.3) THEN
+      call h5dread_f(dset_id, H5T_NATIVE_DOUBLE,
+     +     GZ,
+     +     dimsm, error, file_space_id = filspace_id,
+     +     mem_space_id = memspace_id) !, xfer_prp = plist_id_w)
+      END IF
 
 !     Close dateset
       call h5sclose_f(filspace_id, error)
@@ -674,34 +693,79 @@ c$$$      call h5aclose_f(aid, error)
       call h5fclose_f(file_id, error)
       call h5close_f(error)
 
-      ! Calculate the GYF in the interior
-      do ith=1,NY
-         GYF(ith)=0.5*(GY(ith)+GY(ith+1))
-      end do
 
-      ! ###############################
-      !    Get the outer ghost cells
-      ! ###############################
-
-      ! in the lower part of the domain ...
-      if (RANKY.EQ.0) THEN
-         GYF(0) = 2.d0*GYF(1)-GYF(2)
-      ELSE
-         CALL MPI_SEND(GYF(2),1,MPI_DOUBLE_PRECISION,RANKY-1,
+      IF (coord.eq.2) THEN
+         ! Calculate the GF in the interior
+         do ith=1,NY
+            GYF(ith)=0.5*(GY(ith)+GY(ith+1))
+         end do
+         ! Get ghost cells at lower bound
+         IF (RANKY.EQ.0) THEN
+            GYF(0) = 2.d0*GYF(1)-GYF(2)
+         ELSE
+            CALL MPI_SEND(GYF(2),1,MPI_DOUBLE_PRECISION,RANKY-1,
      &        100+RANKY  ,MPI_COMM_Y,ierror)
-         CALL MPI_RECV(GYF(0),1,MPI_DOUBLE_PRECISION,RANKY-1,
+            CALL MPI_RECV(GYF(0),1,MPI_DOUBLE_PRECISION,RANKY-1,
      &        110+RANKY-1,MPI_COMM_Y,status,ierror)
+         END IF
+         ! Get ghost cells at upper bound
+         IF (RANKY.EQ.NPROCY-1) THEN
+            GYF(NY+1)=2.d0*GYF(NY)-GYF(NY-1)
+         ELSE
+            CALL MPI_SEND(GYF(NY-1),1,MPI_DOUBLE_PRECISION,RANKY+1,
+     &        110+RANKY  ,MPI_COMM_Y,ierror)
+            CALL MPI_RECV(GYF(NY+1),1,MPI_DOUBLE_PRECISION,RANKY+1,
+     &        100+RANKY+1,MPI_COMM_Y,status,ierror)
+         END IF
+      ELSE IF (coord.eq.3) THEN
+         ! Calculate the GF in the interior
+         do ith=1,NZ
+            GZF(ith)=0.5*(GZ(ith)+GZ(ith+1))
+         end do
+         ! Get ghost cells at lower bound
+         IF (RANKZ.EQ.0) THEN
+            GZF(0) = 2.d0*GZF(1)-GZF(2)
+         ELSE
+            CALL MPI_SEND(GZF(2),1,MPI_DOUBLE_PRECISION,RANKZ-1,
+     &        100+RANKZ  ,MPI_COMM_Z,ierror)
+            CALL MPI_RECV(GZF(0),1,MPI_DOUBLE_PRECISION,RANKZ-1,
+     &        110+RANKZ-1,MPI_COMM_Z,status,ierror)
+         END IF
+         ! Get ghost cells at upper bound
+         IF (RANKZ.EQ.NPROCZ-1) THEN
+            GZF(NZ+1)=2.d0*GZF(NZ)-GZF(NZ-1)
+         ELSE
+            CALL MPI_SEND(GZF(NZ-1),1,MPI_DOUBLE_PRECISION,RANKZ+1,
+     &        110+RANKZ  ,MPI_COMM_Z,ierror)
+            CALL MPI_RECV(GZF(NZ+1),1,MPI_DOUBLE_PRECISION,RANKZ+1,
+     &        100+RANKZ+1,MPI_COMM_Z,status,ierror)
+         END IF
       END IF
 
-      ! in the lower part of the domain ...
-      IF (RANKY.EQ.NPROCY-1) THEN
-         GYF(NY+1)=2.d0*GYF(NY)-GYF(NY-1)
-      ELSE
-         CALL MPI_SEND(GYF(NY-1),1,MPI_DOUBLE_PRECISION,RANKY+1,
-     &        110+RANKY  ,MPI_COMM_Y,ierror)
-         CALL MPI_RECV(GYF(NY+1),1,MPI_DOUBLE_PRECISION,RANKY+1,
-     &        100+RANKY+1,MPI_COMM_Y,status,ierror)
-      END IF
+
+!       ! ###############################
+!       !    Get the outer ghost cells
+!       ! ###############################
+
+!       ! in the lower part of the domain ...
+!       if (RANKY.EQ.0) THEN
+!          GYF(0) = 2.d0*GYF(1)-GYF(2)
+!       ELSE
+!          CALL MPI_SEND(GYF(2),1,MPI_DOUBLE_PRECISION,RANKY-1,
+!      &        100+RANKY  ,MPI_COMM_Y,ierror)
+!          CALL MPI_RECV(GYF(0),1,MPI_DOUBLE_PRECISION,RANKY-1,
+!      &        110+RANKY-1,MPI_COMM_Y,status,ierror)
+!       END IF
+
+!       ! in the lower part of the domain ...
+!       IF (RANKY.EQ.NPROCY-1) THEN
+!          GYF(NY+1)=2.d0*GYF(NY)-GYF(NY-1)
+!       ELSE
+!          CALL MPI_SEND(GYF(NY-1),1,MPI_DOUBLE_PRECISION,RANKY+1,
+!      &        110+RANKY  ,MPI_COMM_Y,ierror)
+!          CALL MPI_RECV(GYF(NY+1),1,MPI_DOUBLE_PRECISION,RANKY+1,
+!      &        100+RANKY+1,MPI_COMM_Y,status,ierror)
+!       END IF
 
 c$$$
 c$$$      call mpi_finalize(error)
