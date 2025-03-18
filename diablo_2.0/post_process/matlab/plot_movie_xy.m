@@ -1,6 +1,6 @@
 % This script shows how to load in 2D slices and make a movie of the simulation output
 % Run after readmean.m
-LX=30;
+LX=13.98;
 NX=128;
 
 x=linspace(0,LX,NX);
@@ -19,7 +19,8 @@ k
     timename=[int2str(k)];
   end
 
-varname=['/th02_xy/' timename];
+varname=['/th04_xy/' timename];
+% varname=['/u_xy/' timename];
 %varname=['/nu_t_xy/' timename];
 
 A=h5read(filename,varname);
@@ -27,7 +28,9 @@ A=h5read(filename,varname);
 pcolor(x,gyf,A'); shading interp;
 %caxis([-1.5 1.5]);
 
+
 axis tight
+ylim([-10 10])
 shading interp
 colormap(jet(256));
 colorbar

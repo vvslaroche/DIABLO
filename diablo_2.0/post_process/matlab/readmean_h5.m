@@ -1,14 +1,18 @@
 % This script reads in statistics outputted by diablo 
 % when using HDF5 output
+clear
 
 % User settings....
 % Set the run directory
-base_dir='../../KH_test';
-NY=65; % Here, NY should match the value in grid_def.all
-N_TH=3; % The number of scalars
+% base_dir='../../KH_test';
+base_dir='../../../../DIABLO-data/bgc-Re1000_Pr7_R3_SEP_NY193_h07.1';
+% base_dir='../../../../DIABLO-data/bgc-LES';
+NY=193; % Here, NY should match the value in grid_def.all
+N_TH=7; % The number of scalars
 Re = 1000; NU=1/Re; % Enter the Reynolds number or viscosity from input.dat
 Pr=1;   kappa=NU/Pr; % Prandtl number
-RI(1:N_TH)=0.15; % Enter the richardson number for each scalar
+RI(1)=0.15; % Enter the richardson number for each scalar
+RI(2:N_TH)=0.0;
 
 % Set the start and end time in code units for start of averaging
 tstart=0;
