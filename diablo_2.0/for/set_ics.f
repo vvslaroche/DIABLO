@@ -86,6 +86,16 @@ C tanh shear profile with primary mode kick in X
            END DO
          END DO
        END DO
+      else if (IC_TYPE.eq.6) then
+        DO J=0,NY
+         DO K=0,NZP-1
+           DO I=0,NXM
+             U1(I,K,J)=0.d0
+             U2(I,K,J)=0.d0
+             U3(I,K,J)=0.d0
+           END DO
+         END DO
+       END DO
       else
         WRITE(*,*) 'WARNING, unsupported IC_TYPE in CREATE_FLOW'
       end if
@@ -271,6 +281,15 @@ C particular problem of interest
                 TH(I,K,J,N)=(TH_COEFF(N)*TANH(R(N)
      &            *(GYF(J)-TH_COEFF(N)*TH_SHIFT(N))) + 1.0)/2.0
               END IF
+            END DO
+          END DO
+        END DO
+       ELSE IF (IC_TYPE.eq.6) then
+! stockton LES
+        DO K=0,NZP-1
+          DO I=0,NXM
+            DO J=1,NY
+              TH(I,K,J,N)=TANH(GYF(J)-LY/2.0)
             END DO
           END DO
         END DO
