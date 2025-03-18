@@ -104,6 +104,33 @@
       END DO
       END IF
 
+
+
+      IF (IC_TYPE.eq.6) THEN
+! Loop over phytoplankton
+      DO N=1,N_TH
+      DO J=JSTART,JEND
+        DO K=0,NZP-1
+          DO I=0,NXM
+            S1(I,K,J)=0.00001*exp((GYF(J)-LY)/3.0)
+     &         * (sin(TIME*2.0*PI/(12.0*60.0*60.0))+1.0)/2.0
+            S1(I,K,J)=-0.0001*exp((GYF(J)-LY)/3.0)
+     &         * (sin(TIME*2.0*PI/(12.0*60.0*60.0)+PI)+1.0)/2.0
+          END DO
+        END DO
+      END DO
+! Convert to Fourier space
+      CALL FFT_XZ_TO_FOURIER(S1,CS1,0,NY+1)
+      DO J=JSTART,JEND
+        DO K=0,TNKZ
+          DO I=0,NXP-1
+            CFTH(I,K,J,N)=CFTH(I,K,J,N)+CS1(I,K,J)
+          END DO
+        END DO
+      END DO
+      END DO
+      END IF
+
       RETURN 
       END
 
