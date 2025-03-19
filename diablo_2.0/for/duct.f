@@ -47,7 +47,7 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
       END
 
 C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
-      SUBROUTINE CREATE_GRID_DUCT
+      SUBROUTINE CREATE_GRID_DUCT_OLD
 C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
       include 'header'
       integer I,J,K
@@ -125,7 +125,66 @@ C Define grid spacing
 
 
 C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+      SUBROUTINE CREATE_GRID_DUCT
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+      INCLUDE 'header'
+      CHARACTER*55 FNAME
+      INTEGER I,J,K
+
+         IF (RANK.EQ.0)
+     &     WRITE (6,*) 'Fourier in X'
+         DO I=0,NX
+           GX(I)=(I*LX)/NX
+           DX(I)=LX/NX
+           IF (VERBOSITY .GT. 3 .AND. RANK.EQ.0)
+     &          WRITE(6,*) 'GX(',I,') = ',GX(I)
+         END DO
+         IF (RANK.EQ.0)
+     &        WRITE (6,*) 'Finite-difference in Z'
+         IF (RANK.EQ.0)
+     &        WRITE (6,*) 'Finite-difference in Y'
+
+         IF (RANK.EQ.0)
+     &        write(*,*) 'USE_MPI: ',USE_MPI
+
+         FNAME='grid.h5'
+         if (USE_MPI) then
+         call mpi_barrier(MPI_COMM_WORLD,ierror)
+         end if
+
+         call ReadGridHDF5(FNAME,2)
+
+         call ReadGridHDF5(FNAME,3)
+
+
+C Define grid spacing
+         DO J=1,NY+1
+           DY(J)=(GYF(J)-GYF(J-1))
+         END DO
+         DO J=1,NY
+           DYF(J)=(GY(J+1)-GY(J))
+         END DO
+         DYF(NY+1)=DYF(NY)
+C Define grid spacing
+         DO K=1,NZ+1
+           DZ(K)=(GZF(K)-GZF(K-1))
+         END DO
+         DO K=1,NZ
+           DZF(K)=(GZ(K+1)-GZ(K))
+         END DO
+         DZF(NZ+1)=DZF(NZ)
+
+         RETURN
+         END
+
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
       SUBROUTINE INPUT_DUCT
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+       RETURN
+       END
+
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+      SUBROUTINE INIT_DUCT_MOVIE
 C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
        RETURN
        END
