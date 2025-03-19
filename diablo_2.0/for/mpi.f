@@ -181,6 +181,27 @@
       RETURN
       END
 
+
+
+      SUBROUTINE GHOST_DUCT_MPI
+! This subroutine is part of the MPI package for the channel flow
+! Diablo package.
+! Here, we define a set of ghost cells on each process
+! the ghost cells contain information from the neighboring nodes
+! and allow us to compute finite differences over the local gridpoints.
+! We need to update the contents of the ghost cells at the start of
+! each Runge-Kutta substep
+
+      include 'header'
+
+      integer i,j,k,N
+
+      RETURN
+      END
+
+
+
+
       SUBROUTINE GHOST_LES_MPI_KAPPA_T
 ! This subroutine is part of the MPI package for the LES subroutine
 ! Here, after calculating the SGS viscosity, NU_T on each core,
@@ -1375,6 +1396,20 @@ C prevent the tridiagonal matrix from becomming singular for i,k=0
       IF (RANKY.EQ.NPROCY-1) THEN
         CALL APPLY_BC_VEL_PHYS_UPPER
       END IF
+
+      RETURN
+      END
+
+
+
+      !----*|--.---------.---------.---------.---------.---------.---------.-|------
+      SUBROUTINE INIT_DUCT_MPI
+C----*|--.---------.---------.---------.---------.---------.---------.-|-----|
+C Initialize any constants here
+      INCLUDE 'header'
+
+      INTEGER J, N
+
 
       RETURN
       END
