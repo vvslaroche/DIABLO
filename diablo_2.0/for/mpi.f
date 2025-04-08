@@ -1783,16 +1783,6 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
       END SUBROUTINE
 
 
-! output code if needed
-!       CHARACTER*55 FNAME
-!       WRITE(*,*) 'writing TMP1A on rank ', RANK  
-!       FNAME='TMP1A_'//char(RANK+48)//'.dat'
-!       OPEN(UNIT=15,FILE=FNAME,STATUS="UNKNOWN",FORM="FORMATTED")
-!       WRITE(15,151) real(TMP1A)
-!       CLOSE(15)
-! 151   format(F30.20)
-
-
 C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
       SUBROUTINE FFT_XZ_TO_FOURIER(V,VV,JMIN,JMAX)
 C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
