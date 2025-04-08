@@ -86,6 +86,21 @@ C tanh shear profile with primary mode kick in X
            END DO
          END DO
        END DO
+      else if (IC_TYPE.eq.9) then
+C known modes for testing
+       DO J=0,NY
+         DO K=0,NZP-1
+           DO I=0,NXM
+            !  U1(I,K,J)=COS(10.0*2.0*PI*GX(I)/LX)
+             U1(I,K,J)=COS(2.0*2.0*PI*GZ(K)/LZ)
+    !  &       + 3*COS(4*2.0*PI*GX(I)/LX)
+    !  &       + 6*COS(7*2.0*PI*GZ(I)/LZ)
+            !  U1(I,K,J)=1.d0
+             U2(I,K,J)=0.d0
+             U3(I,K,J)=0.d0
+           END DO
+         END DO
+       END DO
       else
         WRITE(*,*) 'WARNING, unsupported IC_TYPE in CREATE_FLOW'
       end if
@@ -121,7 +136,7 @@ C Zero the ghost cells
       END DO
       END IF
 
-C Convert to Fourier space      
+C Convert to Fourier space  
       CALL FFT_XZ_TO_FOURIER(U1,CU1,0,NY+1)
       CALL FFT_XZ_TO_FOURIER(U2,CU2,0,NY+1)
       CALL FFT_XZ_TO_FOURIER(U3,CU3,0,NY+1)
@@ -258,8 +273,17 @@ C particular problem of interest
            END DO
          END DO
        END DO
+       ELSE IF (IC_TYPE.eq.9) then
+! known modes for testing
+        DO K=1,NZP
+          DO I=0,NXM
+            DO J=1,NY
+              TH(I,K,J,N)=0.d0
+            END DO
+          END DO
+        END DO
        ELSE
-        WRITE(*,*) 'WARNING, unsupported IC_TYPE in CREATE_FLOW'
+        WRITE(*,*) 'WARNING, unsupported IC_TYPE in CREATE_TH'
         END IF
 
       S1(:,:,:)=TH(:,:,:,N)
@@ -411,9 +435,141 @@ C Example: Gaussian patch centered in the domain
        RETURN
        END
 
+
 C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
       SUBROUTINE CREATE_FLOW_DUCT
 C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+      INCLUDE 'header'
+
+      INTEGER I,J,K,N
+      REAL*8 RNUM1,RNUM2,RNUM3
+      INTEGER, DIMENSION(:), ALLOCATABLE :: seed
+
+
+C Initialize the random number generator
+      CALL RANDOM_SEED(SIZE = K)
+      Allocate (seed(1:K))
+      do k=1,K
+        seed(k)=RANK+k+999
+      end do
+      CALL RANDOM_SEED(PUT = seed)
+
+C UBULK0 and KICK should be set in input.dat
+
+C IC_TYPE is set in input_duct.dat and can be used to easily
+C control which initial condition is used.  A few examples
+C are given here. These can be modified, or new types can be
+C added 
+
+      IF (IC_TYPE.eq.0) then
+C Parabolic profile for laminar closed channel flow
+        DO J=0,NY
+          DO K=0,NZP+1
+            DO I=0,NXM
+              U1(I,K,J)=(3./2.)*UBULK0*(1.d0-GYF(J)**2.)
+              U2(I,K,J)=0.
+              U3(I,K,J)=0.
+            END DO
+          END DO
+        END DO
+      ELSE IF (IC_TYPE.eq.3) THEN
+C Tanh shear layer
+        DO J=0,NY
+          DO K=0,NZP+1
+            DO I=0,NXM
+              U1(I,K,J)=TANH(GYF(J))
+              U2(I,K,J)=0.d0
+              U3(I,K,J)=0.d0
+            END DO
+          END DO
+        END DO
+      ELSE IF (IC_TYPE.eq.9) THEN
+C known modes for testing
+        DO J=0,NY
+          DO K=0,NZP+1
+            DO I=0,NXM
+              U1(I,K,J)=COS(10.0*2.0*PI*GX(I)/LX)
+              U2(I,K,J)=0.d0
+              U3(I,K,J)=0.d0
+            END DO
+          END DO
+        END DO
+      ELSE
+        WRITE(*,*) 'WARNING, unsupported IC_TYPE in CREATE_FLOW'
+      END IF
+
+
+C Add random noise in physical space
+      CALL RANDOM_NUMBER(RNUM1)
+      CALL RANDOM_NUMBER(RNUM1)
+      CALL RANDOM_NUMBER(RNUM1)
+
+      DO J=0,NY+1
+        DO K=0,NZP+1
+          DO I=0,NXM
+            CALL RANDOM_NUMBER(RNUM1)
+            U1(I,K,J)=U1(I,K,J)+KICK*(RNUM1-0.5d0)
+            CALL RANDOM_NUMBER(RNUM1)
+            U2(I,K,J)=U2(I,K,J)+KICK*(RNUM1-0.5d0)
+            CALL RANDOM_NUMBER(RNUM1)
+            U3(I,K,J)=U3(I,K,J)+KICK*(RNUM1-0.5d0)
+          END DO
+        END DO
+      END DO
+
+C Zero the ghost cells
+      IF (.NOT.USE_MPI) THEN
+        DO K=0,NZP+1
+          DO I=0,NXM
+            U1(I,K,0)=0.
+            U2(I,K,0)=0.
+            U3(I,K,0)=0.
+            U1(I,K,NY+1)=0.
+            U2(I,K,NY+1)=0.
+            U3(I,K,NY+1)=0.
+          END DO
+        END DO
+        DO J=0,NY+1
+          DO I=0,NXM
+            U1(I,0,J)=0.
+            U2(I,0,J)=0.
+            U3(I,0,J)=0.
+            U1(I,NZP+1,J)=0.
+            U2(I,NZP+1,J)=0.
+            U3(I,NZP+1,J)=0.
+          END DO
+        END DO
+      END IF
+
+C Convert to Fourier space  
+      CALL FFT_X_TO_FOURIER(U1,CU1,0,NY+1)
+      CALL FFT_X_TO_FOURIER(U2,CU2,0,NY+1)
+      CALL FFT_X_TO_FOURIER(U3,CU3,0,NY+1)
+      CALL FFT_X_TO_FOURIER(P,CP,0,NY+1)
+
+
+      IF (USE_MPI) THEN
+        CALL GHOST_DUCT_MPI
+      END IF
+C Apply Boundary conditions to velocity field
+      IF (USE_MPI) THEN
+        ! CALL APPLY_BC_VEL_MPI  - needs to be fixed
+      ELSE
+        ! CALL APPLY_BC_VEL_LOWER  - needs to be fixed
+        ! CALL APPLY_BC_VEL_UPPER  - needs to be fixed
+      END IF
+
+C Remove the divergence of the velocity field
+      CALL REM_DIV_DUCT
+
+      IF (USE_MPI) THEN
+        CALL GHOST_DUCT_MPI
+      END IF
+
+
+C Save various statistics to keep track of the initial condition
+      CALL SAVE_STATS_CHAN(.FALSE.)
+
 
       RETURN
       END
@@ -422,6 +578,54 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
 C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
       SUBROUTINE CREATE_TH_DUCT
 C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+C Initialize the scalar fields
+C In this subroutine, you should initialize each scalar field for the
+C particular problem of interest
+
+      INCLUDE 'header'
+      INTEGER I,J,K,N
+
+      DO N=1,N_TH
+      IF (CREATE_NEW_TH(N)) THEN
+
+      IF (IC_TYPE.eq.0) THEN
+! As an example, initialize TH1 with a sine in x
+        DO K=1,NZP
+          DO I=0,NXM
+            DO J=1,NY
+              TH(I,K,J,N)=sin(2.d0*PI*GX(I)/LX)/(4.d0*PI**2.d0)
+            END DO
+          END DO
+        END DO
+      ELSE IF ((IC_TYPE.eq.3).or.(IC_TYPE.eq.4)) then
+! Tanh profile 
+        DO K=1,NZP
+          DO I=0,NXM
+            DO J=1,NY
+              TH(I,K,J,N)=TANH(GYF(J))
+            END DO
+          END DO
+        END DO
+      ELSE IF (IC_TYPE.eq.9) then
+! known modes for testing
+        DO K=1,NZP
+          DO I=0,NXM
+            DO J=1,NY
+              TH(I,K,J,N)=0.d0
+            END DO
+          END DO
+        END DO
+      ELSE
+        WRITE(*,*) 'WARNING, unsupported IC_TYPE in CREATE_TH'
+      END IF
+
+      S1(:,:,:)=TH(:,:,:,N)
+      CALL FFT_X_TO_FOURIER(S1,CS1,0,NY+1)
+      CTH(:,:,:,N)=CS1(:,:,:)
+
+      END IF
+      END DO
+
 
       RETURN
       END
