@@ -10,6 +10,7 @@
 !  optimizations based on the grid size at compile time).
 !----*|--.---------.---------.---------.---------.---------.---------.-|-------|
       INTEGER   NX, NY, NZ, N_TH
+      INTEGER   NZP
       INCLUDE   'grid_def'
 
       INCLUDE   'header_mpi'
@@ -133,9 +134,11 @@
       INTEGER NUM_READ_TH
       INTEGER READ_TH_INDEX(1:N_TH)
       INTEGER JSTART_TH(1:N_TH),JEND_TH(1:N_TH)
+      INTEGER KSTART_TH(1:N_TH),KEND_TH(1:N_TH)
 
       COMMON /SCALAR_VARS/
      &          RI,PR,JSTART_TH, JEND_TH, NUM_READ_TH,
+     &          KSTART_TH, KEND_TH,
      &          READ_TH_INDEX,
      &          CREATE_NEW_TH, BACKGROUND_GRAD 
 
@@ -200,11 +203,16 @@
      &        DX(0:NX+1), DY(0:NY+1), DZ(0:NZ+1),
      &        GXF(0:NX+1),  GYF(0:NY+1),  GZF(0:NZ+1),
      &        DXF(0:NX+1),  DYF(0:NY+1),  DZF(0:NZ+1)
-      INTEGER JSTART,JEND
+      REAL*8  GZP(0:NZP+1),
+     &        DZP(0:NZP+1),
+     &        GZFP(0:NZP+1),
+     &        DZFP(0:NZP+1)
+      INTEGER JSTART,JEND, KSTART,KEND
 
       COMMON /GRID_PARAMS/ GX,  GY,  GZ,  DX,  DY,  DZ,
      &                     GXF, GYF, GZF, DXF, DYF, DZF,
-     &                     JSTART, JEND
+     &                     GZP, DZP, GZFP, DZFP,
+     &                     JSTART, JEND, KSTART, KEND
 
 !----*|--.---------.---------.---------.---------.---------.---------.-|-------|
 ! Global variables
