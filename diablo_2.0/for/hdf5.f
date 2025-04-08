@@ -611,20 +611,18 @@ c$$$      call h5aclose_f(aid, error)
          block  =  NY+1
          offset =  RANKY*(NY-1)
       case(3)
-         write(*,*) ' Error 235455. Not implemented yet! '
-         stop
          cname='z'
 
-         dimsm=NZ+2
-         dimsf=(NZ-1)*NPROCZ+1
+         dimsm=NZP+2
+         dimsf=NZ
 
 !     Stride and count for number of rows and columns in each dimension
          stride = 1
          count  = 1
 
 !     Offset determined by the rank of a processor
-         block  =  NZ+1
-         offset =  RANKZ*(NZ-1)
+         block  =  NZP+1
+         offset =  RANKZ*(NZP-1)
       end select
 
 
@@ -673,7 +671,7 @@ c$$$      call h5aclose_f(aid, error)
      +     mem_space_id = memspace_id) !, xfer_prp = plist_id_w)
       ELSEIF (coord.eq.3) THEN
       call h5dread_f(dset_id, H5T_NATIVE_DOUBLE,
-     +     GZ,
+     +     GZP,
      +     dimsm, error, file_space_id = filspace_id,
      +     mem_space_id = memspace_id) !, xfer_prp = plist_id_w)
       END IF
@@ -719,25 +717,25 @@ c$$$      call h5aclose_f(aid, error)
          END IF
       ELSE IF (coord.eq.3) THEN
          ! Calculate the GF in the interior
-         do ith=1,NZ
-            GZF(ith)=0.5*(GZ(ith)+GZ(ith+1))
+         do ith=1,NZP
+            GZFP(ith)=0.5*(GZP(ith)+GZP(ith+1))
          end do
          ! Get ghost cells at lower bound
          IF (RANKZ.EQ.0) THEN
-            GZF(0) = 2.d0*GZF(1)-GZF(2)
+            GZFP(0) = 2.d0*GZFP(1)-GZFP(2)
          ELSE
-            CALL MPI_SEND(GZF(2),1,MPI_DOUBLE_PRECISION,RANKZ-1,
+            CALL MPI_SEND(GZFP(2),1,MPI_DOUBLE_PRECISION,RANKZ-1,
      &        100+RANKZ  ,MPI_COMM_Z,ierror)
-            CALL MPI_RECV(GZF(0),1,MPI_DOUBLE_PRECISION,RANKZ-1,
+            CALL MPI_RECV(GZFP(0),1,MPI_DOUBLE_PRECISION,RANKZ-1,
      &        110+RANKZ-1,MPI_COMM_Z,status,ierror)
          END IF
          ! Get ghost cells at upper bound
          IF (RANKZ.EQ.NPROCZ-1) THEN
-            GZF(NZ+1)=2.d0*GZF(NZ)-GZF(NZ-1)
+            GZFP(NZP+1)=2.d0*GZFP(NZP)-GZFP(NZP-1)
          ELSE
-            CALL MPI_SEND(GZF(NZ-1),1,MPI_DOUBLE_PRECISION,RANKZ+1,
+            CALL MPI_SEND(GZFP(NZP-1),1,MPI_DOUBLE_PRECISION,RANKZ+1,
      &        110+RANKZ  ,MPI_COMM_Z,ierror)
-            CALL MPI_RECV(GZF(NZ+1),1,MPI_DOUBLE_PRECISION,RANKZ+1,
+            CALL MPI_RECV(GZFP(NZP+1),1,MPI_DOUBLE_PRECISION,RANKZ+1,
      &        100+RANKZ+1,MPI_COMM_Z,status,ierror)
          END IF
       END IF
