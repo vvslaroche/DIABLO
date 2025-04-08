@@ -69,61 +69,80 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
       CI = CMPLX(0.0,1.0)
       EPS= 0.000000001
 
-      IF (NUM_PER_DIR .GT. 0) THEN
+      ! duct
+      IF (NUM_PER_DIR .EQ. 1) THEN
+        CALL DFFTW_PLAN_GURU_DFT_R2C(FFTW_X_TO_F_PLAN, 1, NX, 1, 1,
+     *       1, NZP+2, NX+2, NX/2+1, V, TMP, FFTW_MEASURE)
+        CALL DFFTW_PLAN_GURU_DFT_C2R(FFTW_X_TO_P_PLAN, 1, NX, 1, 1,
+     *       1, NZP+2, NX/2+1, NX+2, TMP, V, FFTW_MEASURE)
+        IF (RANK.EQ.0) 
+     &     write(*,*) 'In fft: NKX: ',NKX
+      END IF
+
+
+      ! channel
+      IF (NUM_PER_DIR .EQ. 2) THEN
         CALL DFFTW_PLAN_GURU_DFT_R2C(FFTW_X_TO_F_PLAN, 1, NX, 1, 1,
      *       1, NZP, NX+2, NX/2+1, V, TMP, FFTW_MEASURE)
         CALL DFFTW_PLAN_GURU_DFT_C2R(FFTW_X_TO_P_PLAN, 1, NX, 1, 1,
      *       1, NZP, NX/2+1, NX+2, TMP, V, FFTW_MEASURE)
-        RNX=1.0*NX
-        DO I=0,NXPP-1
-          KX(I)=(I+NXPP*RANKZ)*(2.*PI)/LX
-          KX2(I)=KX(I)*KX(I)
-          CIKX(I)=CI*KX(I)
-        END DO
-      END IF
-
-      IF (NUM_PER_DIR .GT. 1) THEN
         CALL DFFTW_PLAN_GURU_DFT(FFTW_Z_TO_F_PLAN, 1, NZ, NXP+1, NXP+1,
      *       1, NXP, 1, 1, VV, VV, FFTW_FORWARD, FFTW_MEASURE)
         CALL DFFTW_PLAN_GURU_DFT(FFTW_Z_TO_P_PLAN, 1, NZ, NXP+1, NXP+1,
      *       1, NXP, 1, 1, VV, VV, FFTW_BACKWARD, FFTW_MEASURE)
-        RNZ=1.0*NZ
-        DO K=0,NKZ
-          KZ(K)=K*(2.*PI)/LZ
-        END DO
-        DO K=1,NKZ
-           KZ(TNKZ+1-K)=-K*(2.*PI)/LZ
-        END DO
-        DO K=0,TNKZ
-          KZ2(K)=KZ(K)*KZ(K)
-          CIKZ(K)=CI*KZ(K)
-        END DO
+        IF (RANK.EQ.0) 
+     &     write(*,*) 'In fft: NKX,TNKZ: ',NKX,TNKZ
       END IF
 
-      IF (RANK.EQ.0) 
-     &     write(*,*) 'In fft: NKX,TNKZ: ',NKX,TNKZ
 
-c --- needs to be updated to fftw3
-    !   IF (NUM_PER_DIR .GT. 2) THEN
+      ! periodic - needs to be updated with FFTW3 and MPI
+      IF (NUM_PER_DIR .EQ. 3) THEN
     !     CALL FFTWND_F77_CREATE_PLAN(FFTW_Y_TO_F_PLAN, 1, NY,
     !  *       FFTW_FORWARD,  FFTW_MEASURE + FFTW_IN_PLACE )
     !     CALL FFTWND_F77_CREATE_PLAN(FFTW_Y_TO_P_PLAN, 1, NY,
     !  *       FFTW_BACKWARD, FFTW_MEASURE + FFTW_IN_PLACE )
-    !     RNY=1.0*NY
-	  !     KY(0) = 0.
-	  !     KY2(0) = 0.
-	  !     CIKY(0) = (0.0,0.0)
-    !     DO J=1,NKY
-    !       KY(J)=J*(2.*PI)/LY
-    !     END DO
-    !     DO J=1,NKY
-    !       KY(TNKY+1-J)=-J*(2.*PI)/LY
-    !     END DO
-    !     DO J=1,TNKY
-    !       KY2(J)=KY(J)*KY(J)
-    !       CIKY(J)=CI*KY(J)
-    !     END DO
-    !   END IF
+      END IF
+
+
+      ! some of these go unused depending on case (duct,chan,per)
+      ! X
+      RNX=1.0*NX
+      DO I=0,NXPP-1
+        KX(I)=(I+NXPP*RANKZ)*(2.*PI)/LX
+        KX2(I)=KX(I)*KX(I)
+        CIKX(I)=CI*KX(I)
+      END DO
+
+      ! Z
+      RNZ=1.0*NZ
+      DO K=0,NKZ
+        KZ(K)=K*(2.*PI)/LZ
+      END DO
+      DO K=1,NKZ
+         KZ(TNKZ+1-K)=-K*(2.*PI)/LZ
+      END DO
+      DO K=0,TNKZ
+        KZ2(K)=KZ(K)*KZ(K)
+        CIKZ(K)=CI*KZ(K)
+      END DO
+
+      ! Y
+      RNY=1.0*NY
+      KY(0) = 0.
+      KY2(0) = 0.
+      CIKY(0) = (0.0,0.0)
+      DO J=1,NKY
+        KY(J)=J*(2.*PI)/LY
+      END DO
+      DO J=1,NKY
+        KY(TNKY+1-J)=-J*(2.*PI)/LY
+      END DO
+      DO J=1,TNKY
+        KY2(J)=KY(J)*KY(J)
+        CIKY(J)=CI*KY(J)
+      END DO
+
+
 
       DO I=0,NKX
         DO K=0,NZ
@@ -147,59 +166,13 @@ C-------------> The transform routines for the duct flow follow. <-------------|
 C******************************************************************************|
 
 C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
-      SUBROUTINE FFT_X_TO_FOURIER(U,CU,JMIN,JMAX,KMIN,KMAX)
-C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
-C This routine transforms (in 1 direction) planes JMIN-JMAX to Fourier space.
-C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
-      INCLUDE 'header'
-      INTEGER JMIN, JMAX, KMIN, KMAX, I, J, K
-      REAL*8     U (0:NX+1,0:NZ+1,0:NY+1)
-      COMPLEX*16 CU(0:NX/2,0:NZ+1,0:NY+1)
 
-C Looping over the planes of interest, simply perform a real -> complex
-C transform in place in the big storage array, scaling appropriately.
+c
+c     THE DUCT TRANSFORM FFT_X_TO_* HAVE BEEN MOVED TO THE MPI FILE 
+c     SINCE THEY REQUIRE 2D PARALLELIZATION
+c
 
-c --- needs to be updated to fftw3
-    !   DO J=JMIN,JMAX
-    !    CALL RFFTWND_F77_REAL_TO_COMPLEX(FFTW_X_TO_F_PLAN,(KMAX-KMIN+1),
-    !  *    U(0,KMIN,J), 1, NX+2, CU(0,KMIN,J), 1, NX/2+1)
-    !     DO K=KMIN,KMAX
-    !       DO I=0,NKX
-    !         CU(I,K,J)=CU(I,K,J)/RNX
-    !       END DO
-    !     END DO
-    !   END DO
 
-      RETURN
-      END
-
-C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
-      SUBROUTINE FFT_X_TO_PHYSICAL(CU,U,JMIN,JMAX,KMIN,KMAX)
-C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
-C This routine transforms (in 1 direction) planes JMIN-JMAX to physical space.
-C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
-      INCLUDE 'header'
-      INTEGER JMIN, JMAX, KMIN, KMAX, I, J, K
-      REAL*8     U (0:NX+1,0:NZ+1,0:NY+1)
-      COMPLEX*16 CU(0:NX/2,0:NZ+1,0:NY+1)
-
-C Looping over the planes of interest, simply set the higher wavenumbers to
-C zero and then perform a complex -> real transform in place in the big
-C storage array.
-
-c --- needs to be updated to fftw3
-    !   DO J=JMIN,JMAX
-    !     DO K=KMIN,KMAX
-    !       DO I=NKX+1,NX/2
-    !         CU(I,K,J)=0.
-    !       END DO
-    !     END DO
-    !    CALL RFFTWND_F77_COMPLEX_TO_REAL(FFTW_X_TO_P_PLAN,(KMAX-KMIN+1),
-    !  *    CU(0,KMIN,J), 1, NX/2+1, U(0,KMIN,J), 1, NX+2)
-    !   END DO
-
-      RETURN
-      END
 
 C******************************************************************************|
 C-----------> The transform routines for the channel flow follow. <------------|
@@ -233,7 +206,7 @@ C temporary storage variable, perform a complex -> complex transform in the
 C y direction, then put the data back into the big storage array, packing the
 C data towards J=0 and scaling appropriately.
 
-c --- needs to be updated to fftw3
+c --- needs to be updated with FFTW3 and MPI
     !   CALL FFT_XZ_TO_FOURIER(U,CU,0,NYM)
     !   DO I=0,NKX
     !     DO K=0,TNKZ
@@ -272,7 +245,7 @@ C complex transform in the y direction, then put the data back into the big
 C storage array.  Finally, transform in the X & Z directions using
 C FFT_XZ_TO_PHYSICAL.
 
-c --- needs to be updated to fftw3
+c --- needs to be updated with FFTW3 and MPI
     !   DO I=0,NKX
     !     DO K=0,TNKZ 
     !       DO J=0,NKY
