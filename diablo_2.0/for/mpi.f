@@ -1003,6 +1003,28 @@ c$$$     &     MPI_DOUBLE_COMPLEX,XY2ZY,ierr)
 c$$$      call MPI_TYPE_COMMIT(XY2ZY,ierr)
 
 
+c     ------------------------------
+c     Define datatypes - for DUCT
+c     ------------------------------
+
+      ! Box full x to z (1)
+      call MPI_TYPE_VECTOR(NZP+2,NXP,NX/2,
+     &     MPI_DOUBLE_COMPLEX,TYPE1,ierror)
+      call MPI_TYPE_COMMIT(TYPE1,ierror)
+      bl(1:2)=(/1, 1/)
+      disp(1:2)= (/0, NXP*16/)
+      types=(/TYPE1, MPI_UB/)
+
+      call MPI_TYPE_STRUCT(2,bl,disp,types,X2Z_1,ierror)
+      call MPI_TYPE_COMMIT(X2Z_1,ierror)
+      call MPI_TYPE_FREE(TYPE1,ierror)
+
+      ! Box full x to z (2)
+      call MPI_TYPE_VECTOR(NZP+2,NXP,NXP,
+     &     MPI_DOUBLE_COMPLEX,X2Z_2,ierror)
+      call MPI_TYPE_COMMIT(X2Z_2,ierror)
+
+
 
 C Set a string to determine which input/output files to use
 C When MPI is used, each process will read/write to files with the
@@ -1402,14 +1424,129 @@ C prevent the tridiagonal matrix from becomming singular for i,k=0
 
 
 
-      !----*|--.---------.---------.---------.---------.---------.---------.-|------
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
       SUBROUTINE INIT_DUCT_MPI
-C----*|--.---------.---------.---------.---------.---------.---------.-|-----|
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
 C Initialize any constants here
       INCLUDE 'header'
 
-      INTEGER J, N
+      INTEGER I,J,K,N
 
+      IF (RANK.EQ.0)
+     &     write(*,*) '*******IN INIT_DUCT_MPI *********'
+
+      PI=4.D0*ATAN(1.D0)
+
+! Y - Set the lower bounds for timestepping
+      IF (RANKY.eq.0) THEN
+        write(*,*) 'U_BC_YMIN: ',U_BC_YMIN
+        JEND=NY
+        IF (U_BC_YMIN.EQ.0) THEN
+          JSTART=2
+        ELSE IF (U_BC_YMIN.EQ.1) THEN
+          JSTART=2
+        ELSE
+          JSTART=2
+        END IF
+! Y - Set the lower bounds for timestepping of the scalar equations
+        DO N=1,N_TH
+          JEND_TH(N)=NY
+          IF (TH_BC_YMIN(N).EQ.0) THEN
+            JSTART_TH(N)=2
+          ELSE IF (TH_BC_YMIN(N).EQ.1) THEN
+            JSTART_TH(N)=1
+          ELSE
+            JSTART_TH(N)=2
+          END IF
+        END DO
+! Y - Set the upper bounds for timestepping
+      ELSE IF (RANKY.eq.NPROCY-1) THEN
+        write(*,*) 'U_BC_YMAX: ',U_BC_YMAX
+        JSTART=2
+        IF (U_BC_YMAX.EQ.0) THEN
+          JEND=NY-1
+        ELSE IF (U_BC_YMAX.EQ.1) THEN
+          JEND=NY-1
+        ELSE
+          JEND=NY-1
+        END IF
+! Y - Set the upper bounds for timestepping of the scalar equations
+        DO N=1,N_TH
+        JSTART_TH(N)=2
+        IF (TH_BC_YMAX(N).EQ.0) THEN
+          JEND_TH(N)=NY-1
+        ELSE IF (TH_BC_YMAX(N).EQ.1) THEN
+          JEND_TH(N)=NY
+        ELSE
+          JEND_TH(N)=NY-1
+        END IF
+        END DO
+! Y - Here, we are on a middle process
+      ELSE
+        JSTART=2
+        JEND=NY
+        DO N=1,N_TH
+           JSTART_TH(N)=2
+           JEND_TH(N)=NY
+        END DO
+      END IF
+
+
+
+
+! Z - Set the lower bounds for timestepping
+      IF (RANKZ.eq.0) THEN
+        write(*,*) 'U_BC_ZMIN: ',U_BC_ZMIN
+        KEND=NZP
+        IF (U_BC_ZMIN.EQ.0) THEN
+          KSTART=2
+        ELSE IF (U_BC_ZMIN.EQ.1) THEN
+          KSTART=2
+        ELSE
+          KSTART=2
+        END IF
+! Z - Set the lower bounds for timestepping of the scalar equations
+        DO N=1,N_TH
+          KEND_TH(N)=NZP
+          IF (TH_BC_ZMIN(N).EQ.0) THEN
+            KSTART_TH(N)=2
+          ELSE IF (TH_BC_ZMIN(N).EQ.1) THEN
+            KSTART_TH(N)=1
+          ELSE
+            KSTART_TH(N)=2
+          END IF
+        END DO
+! Z - Set the upper bounds for timestepping
+      ELSE IF (RANKZ.eq.NPROCZ-1) THEN
+        write(*,*) 'U_BC_ZMAX: ',U_BC_ZMAX
+        KSTART=2
+        IF (U_BC_ZMAX.EQ.0) THEN
+          KEND=NZP-1
+        ELSE IF (U_BC_ZMAX.EQ.1) THEN
+          KEND=NZP-1
+        ELSE
+          KEND=NZP-1
+        END IF
+! Z - Set the upper bounds for timestepping of the scalar equations
+        DO N=1,N_TH
+        KSTART_TH(N)=2
+        IF (TH_BC_ZMAX(N).EQ.0) THEN
+          KEND_TH(N)=NZP-1
+        ELSE IF (TH_BC_ZMAX(N).EQ.1) THEN
+          KEND_TH(N)=NZP
+        ELSE
+          KEND_TH(N)=NZP-1
+        END IF
+        END DO
+! Z - Here, we are on a middle process
+      ELSE
+        KSTART=2
+        KEND=NZP
+        DO N=1,N_TH
+           KSTART_TH(N)=2
+           KEND_TH(N)=NZP
+        END DO
+      END IF
 
       RETURN
       END
@@ -1507,6 +1644,154 @@ c$$$
       END
 
 
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+      SUBROUTINE FFT_X_TO_FOURIER(V,VV,JMIN,JMAX)
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+C This routine transforms (in 1 direction) planes JMIN-JMAX to Fourier space.
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+      include 'header'
+
+      REAL*8     V  (0:NX+1,0:NZP+1,0:NY+1)
+      COMPLEX*16 VV (0:NXP ,0:NZ +1,0:NY+1)
+      COMPLEX*16 TMP1(0:NX/2,0:NZP+1,0:NY+1)
+      COMPLEX*16 TMP1A(0:NX/2-1,0:NZP+1,0:NY+1)
+      COMPLEX*16 TMP2(0:NXP-1,0:(NZP+2)*NPROCZ-1)
+
+      INTEGER I,J,K, N
+      INTEGER JMIN,JMAX
+
+      
+      ! FFT in X
+      DO J=JMIN,JMAX
+        CALL DFFTW_EXECUTE_DFT_R2C(FFTW_X_TO_F_PLAN,
+     *     V(0,0,J), TMP1(0,0,J))
+        DO K=0,NZP+1
+          DO I=0,NKX
+            TMP1(I,K,J)=TMP1(I,K,J)/NX
+            TMP1A(I,K,J)=TMP1(I,K,J)
+          END DO
+          DO I=NKX+1,NX/2
+            TMP1(I,K,J)=cmplx(0.d0,0.d0)
+          END DO
+          DO I=NKX+1,NX/2-1
+            TMP1A(I,K,J)=TMP1(I,K,J)
+          END DO
+        END DO
+      END DO
+
+      ! reconfigure and send
+      DO J=JMIN,JMAX
+        CALL MPI_ALLTOALL(TMP1A(0,0,J),1,X2Z_1,TMP2,1,X2Z_2,
+     &     MPI_COMM_Z,IERROR)
+
+        ! first Z processor
+        DO K=0,NZP
+          DO I=0,NXP-1
+            VV(I,K,J)=TMP2(I,K)
+          END DO
+          VV(NXP,K,J)=cmplx(0.d0,0.d0)
+        END DO
+
+        ! last Z processor
+        DO K=0,NZP-1
+          DO I=0,NXP-1
+            VV(I,(NZP-1)*(NPROCZ-1)+2+K,J)
+     &          =TMP2(I,(NZP+2)*(NPROCZ-1)+2+K)
+          END DO
+          VV(NXP,K,J)=cmplx(0.d0,0.d0)
+        END DO
+        
+        ! intermediate Z processors (if NPROCZ>2)
+        DO N=1,NPROCZ-2
+          DO K=0,NZP-2
+            DO I=0,NXP-1
+              VV(I,(NZP-1)*N+2+K,J)=TMP2(I,(NZP+2)*N+2+K)
+            END DO
+            VV(NXP,K,J)=cmplx(0.d0,0.d0)
+          END DO
+        END DO
+
+      END DO
+
+      END SUBROUTINE
+
+
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+      SUBROUTINE FFT_X_TO_PHYSICAL(V,VV,JMIN,JMAX)
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+C This routine transforms (in 1 direction) planes JMIN-JMAX to physical space.
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+      include 'header'
+
+      REAL*8     V  (0:NX+1,0:NZP+1,0:NY+1)
+      COMPLEX*16 VV (0:NXP ,0:NZ +1,0:NY+1)
+      COMPLEX*16 TMP1(0:NX/2,0:NZP+1,0:NY+1)
+      COMPLEX*16 TMP1A(0:NX/2-1,0:NZP+1,0:NY+1)
+      COMPLEX*16 TMP2(0:NXP-1,0:(NZP+2)*NPROCZ-1)
+
+      INTEGER I,J,K, N
+      INTEGER JMIN,JMAX
+
+
+      ! reconfigure and send
+      DO J=JMIN,JMAX
+        DO I=0,NXP-1
+
+          ! first Z processor
+          DO K=0,NZP
+            TMP2(I,K)=VV(I,K,J)
+          END DO
+          TMP2(I,NZP+1)=VV(I,NZP+1,J)
+
+          ! last Z processor
+          DO K=0,NZP-1
+            TMP2(I,(NZP+2)*(NPROCZ-1)+2+K)
+     &         =VV(I,(NZP-1)*(NPROCZ-1)+2+K,J)
+          END DO
+          TMP2(I,(NZP+2)*(NPROCZ-1))=VV(I,(NZP-1)*(NPROCZ-1),J)
+          TMP2(I,(NZP+2)*(NPROCZ-1)+1)=VV(I,(NZP-1)*(NPROCZ-1)+1,J)
+
+          ! intermediate Z processors (if NPROCZ>2)
+          DO N=1,NPROCZ-2
+            DO K=0,NZP-2
+              TMP2(I,(NZP+2)*N+2+K)=VV(I,(NZP-1)*N+2+K,J)
+            END DO
+            TMP2(I,(NZP+2)*N)=VV(I,(NZP-1)*N,J)
+            TMP2(I,(NZP+2)*N+1)=VV(I,(NZP-1)*N+1,J)
+            TMP2(I,(NZP+2)*N+NZP+1)=VV(I,(NZP-1)*N+NZP+1,J)
+          END DO
+
+        END DO
+        CALL MPI_ALLTOALL(TMP2,1,X2Z_2,TMP1A(0,0,J),1,X2Z_1,
+     &       MPI_COMM_Z,IERROR)
+      END DO
+
+      ! FFT in X
+      DO J=JMIN,JMAX
+        DO K=0,NZP+1
+          DO I=0,NKX
+            TMP1(I,K,J)=TMP1A(I,K,J)
+          END DO
+          DO I=NKX+1,NX/2
+            TMP1(I,K,J)=cmplx(0.d0,0.d0)
+          END DO
+        END DO
+        CALL DFFTW_EXECUTE_DFT_C2R(FFTW_X_TO_P_PLAN,
+     *       TMP1(0,0,J), V(0,0,J))
+      END DO
+
+      END SUBROUTINE
+
+
+! output code if needed
+!       CHARACTER*55 FNAME
+!       WRITE(*,*) 'writing TMP1A on rank ', RANK  
+!       FNAME='TMP1A_'//char(RANK+48)//'.dat'
+!       OPEN(UNIT=15,FILE=FNAME,STATUS="UNKNOWN",FORM="FORMATTED")
+!       WRITE(15,151) real(TMP1A)
+!       CLOSE(15)
+! 151   format(F30.20)
+
 
 C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
       SUBROUTINE FFT_XZ_TO_FOURIER(V,VV,JMIN,JMAX)
@@ -1553,7 +1838,7 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
         END DO
         DO K=NZ,NZ+1
           DO I=0,NXP
-            VV(I,K,J)=cmplx(0.d0,0.d0)    
+            VV(I,K,J)=cmplx(0.d0,0.d0)
           END DO 
         END DO
       END DO
