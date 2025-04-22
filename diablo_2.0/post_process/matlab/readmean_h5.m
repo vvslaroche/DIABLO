@@ -5,7 +5,7 @@ clear
 % User settings....
 % Set the run directory
 % base_dir='../../KH_test';
-base_dir='../../../../DIABLO-data/bgc-Re1000_Pr7_R1_SEP_NY193_h07.1';
+base_dir='../../../../DIABLO-data/bgc-Re1000_Pr7_R3_SEP_NY193_h07.1';
 % base_dir='../../../../DIABLO-data/bgc-LES';
 NY=97; % Here, NY should match the value in grid_def.all
 NY=193;
