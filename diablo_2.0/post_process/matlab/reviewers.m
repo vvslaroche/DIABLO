@@ -22,16 +22,16 @@ hold on; contour(tii,gyf2,thme(:,:,1),c1,'k-','LineWidth',.2);
 contour(tii,gyf2,thme(:,:,1),[0.0 0.0],'k-','LineWidth',1.5);
 ylabel(cb,'$\phi_a$','Interpreter','Latex')
 ylabel('z'); xlabel('t');
-axis([0 500 -19 -11])
+axis([0 300 -19 -11])
 
 subplot(2,1,2)
-pcolor(tii,gyf2,thv(:,:,4)); shading flat;
+pcolor(tii,gyf2,thv(:,:,2)); shading flat;
 cb=colorbar; colormap(gca,cmap1); clim([-5e-3 5e-3]);
-hold on; contour(tii,gyf2,thme(:,:,4),c2,'k-','LineWidth',.2);
-contour(tii,gyf2,thme(:,:,4),[0.5 0.5],'k-','LineWidth',1.5);
+hold on; contour(tii,gyf2,thme(:,:,2),c2,'k-','LineWidth',.2);
+contour(tii,gyf2,thme(:,:,2),[0.5 0.5],'k-','LineWidth',1.5);
 ylabel(cb,'$\phi_a$','Interpreter','Latex')
 ylabel('z'); xlabel('t');
-axis([0 500 -19 -11])
+axis([0 300 -19 -11])
 
 
 
