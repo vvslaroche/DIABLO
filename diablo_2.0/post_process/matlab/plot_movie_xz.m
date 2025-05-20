@@ -1,17 +1,15 @@
-% Run after readmean.m
+% This script shows how to load in 2D slices and make a movie
+% Run after readmean_h5.m
 LX=30;
 NX=128;
+x=linspace(0,LX,NX);
 LZ=4;
 NZ=16;
+z=linspace(0,LZ,NZ);
 
 filename=[base_dir '/movie.h5'];
 
-% Background density gradient
-drhodx=0.0;
-drhodz=0.0;
 
-x=linspace(0,LX,NX);
-z=linspace(0,LZ,NZ);
 
 for k=1:nk
 k
@@ -25,40 +23,28 @@ k
     timename=[int2str(k)];
   end
 
-varname=['/th1_xz/' timename];
-A_th=h5read(filename,varname);
-for j=1:size(A_th,2)
-   A_th(:,j)=A_th(:,j)+drhodz*z(j);
- end
-varname=['/v_xz/' timename];
-A_v=h5read(filename,varname);
-varname=['/w_xz/' timename];
-A_w=h5read(filename,varname);
+varname=['/th01_xz/' timename];
+varname=['/u_xz/' timename];
+A=h5read(filename,varname);
 
-
-subplot(2,1,1)
-pcolor(x,z,A_th'); shading interp;
-set(gca,'FontName','Times','FontSize',14);
-xlabel('x'); ylabel('z'); title(['b, t=' num2str(tii(k)) ]);
-caxis([-1 1]);
+pcolor(x,z,A')
+% caxis([-1.5 1.5]);
+axis tight
+shading interp
+xlabel('X'), ylabel('Z')
 colormap(jet(256));
-colorbar
-
-subplot(2,1,2)
-pcolor(x,z,A_v'); shading interp;
-set(gca,'FontName','Times','FontSize',14);
-xlabel('x'); ylabel('z'); title(['v, t=' num2str(tii(k)) ]);
-caxis([-0.15 0.15]);
-colormap(jet(256));
-colorbar
-
 colorbar
 M(k)=getframe(gcf);
-
 clf;
-
 end
+close
 
 
-
-
+%% Code to save movie (optional)
+filename_mov=[base_dir '/movie_xz.mp4'];
+clear v
+v = VideoWriter(filename_mov, 'MPEG-4');
+v.FrameRate = 20;
+open(v)
+writeVideo(v,M)
+close(v)
