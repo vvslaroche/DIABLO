@@ -1,9 +1,11 @@
 % This script reads in statistics outputted by diablo 
 % when using HDF5 output
+clear
 
 % User settings....
 % Set the run directory
 base_dir='../../KH_test';
+base_dir='../../../../DIABLO-data/duct-chan-knownmodes-copy';
 NY=65; % Here, NY should match the value in grid_def.all
 N_TH=1; % The number of scalars
 Re = 1000; NU=1/Re; % Enter the Reynolds number or viscosity from input.dat
@@ -166,41 +168,41 @@ end
 %'End of time averaging window: ',time(kend)
 
 
-for j=1:NY
-  ume_mean(j)=trapz(time(kstart:kend),ume(j,kstart:kend))/(time(kend)-time(kstart));
-  vme_mean(j)=trapz(time(kstart:kend),vme(j,kstart:kend))/(time(kend)-time(kstart));
-  wme_mean(j)=trapz(time(kstart:kend),wme(j,kstart:kend))/(time(kend)-time(kstart));
-  urms_mean(j)=trapz(time(kstart:kend),urms(j,kstart:kend))/(time(kend)-time(kstart));
-  vrms_mean(j)=trapz(time(kstart:kend),vrms(j,kstart:kend))/(time(kend)-time(kstart));
-  wrms_mean(j)=trapz(time(kstart:kend),wrms(j,kstart:kend))/(time(kend)-time(kstart));
-  dudy_mean(j)=trapz(time(kstart:kend),dudy(j,kstart:kend))/(time(kend)-time(kstart));
-  dwdy_mean(j)=trapz(time(kstart:kend),dwdy(j,kstart:kend))/(time(kend)-time(kstart));
-  tke_mean(j)=trapz(time(kstart:kend),tke(j,kstart:kend))/(time(kend)-time(kstart));
-  uv_mean(j)=trapz(time(kstart:kend),uv(j,kstart:kend))/(time(kend)-time(kstart));
-  wv_mean(j)=trapz(time(kstart:kend),wv(j,kstart:kend))/(time(kend)-time(kstart));
-  cp_mean(j)=trapz(time(kstart:kend),cp(j,kstart:kend))/(time(kend)-time(kstart));
-  omega_x_mean(j)=trapz(time(kstart:kend),omega_x(j,kstart:kend))/(time(kend)-time(kstart));
-  omega_y_mean(j)=trapz(time(kstart:kend),omega_y(j,kstart:kend))/(time(kend)-time(kstart));
-  omega_z_mean(j)=trapz(time(kstart:kend),omega_z(j,kstart:kend))/(time(kend)-time(kstart));
-  if (dudy_mean(j)~=0) 
-    nu_t_mean(j)=-uv_mean(j)/dudy_mean(j);
-  else
-    nu_t_mean(j)=0;
-  end
-  for n=1:N_TH
-    thv_mean(j,n)=trapz(time(kstart:kend),thv(j,kstart:kend,n))/(time(kend)-time(kstart));
-    dthdy_mean(j,n)=trapz(time(kstart:kend),dthdy(j,kstart:kend,n))/(time(kend)-time(kstart));
-    thrms_mean(j,n)=trapz(time(kstart:kend),thrms(j,kstart:kend,n))/(time(kend)-time(kstart));
-    thme_mean(j,n)=trapz(time(kstart:kend),thme(j,kstart:kend,n))/(time(kend)-time(kstart));
-    pe_diss_mean(j,n)=trapz(time(kstart:kend),pe_diss(j,kstart:kend,n))/(time(kend)-time(kstart));
-    if (dthdy_mean(j,n)~=0) 
-      kappa_t_mean(j,n)=-thv_mean(j,n)/dthdy_mean(j,n);
-    else
-      kappa_t_mean(j,n)=0;
-    end 
-  end
-  shear_mean(j)=trapz(time(kstart:kend),shear(j,kstart:kend))/(time(kend)-time(kstart));
-end
+% for j=1:NY
+%   ume_mean(j)=trapz(time(kstart:kend),ume(j,kstart:kend))/(time(kend)-time(kstart));
+%   vme_mean(j)=trapz(time(kstart:kend),vme(j,kstart:kend))/(time(kend)-time(kstart));
+%   wme_mean(j)=trapz(time(kstart:kend),wme(j,kstart:kend))/(time(kend)-time(kstart));
+%   urms_mean(j)=trapz(time(kstart:kend),urms(j,kstart:kend))/(time(kend)-time(kstart));
+%   vrms_mean(j)=trapz(time(kstart:kend),vrms(j,kstart:kend))/(time(kend)-time(kstart));
+%   wrms_mean(j)=trapz(time(kstart:kend),wrms(j,kstart:kend))/(time(kend)-time(kstart));
+%   dudy_mean(j)=trapz(time(kstart:kend),dudy(j,kstart:kend))/(time(kend)-time(kstart));
+%   dwdy_mean(j)=trapz(time(kstart:kend),dwdy(j,kstart:kend))/(time(kend)-time(kstart));
+%   tke_mean(j)=trapz(time(kstart:kend),tke(j,kstart:kend))/(time(kend)-time(kstart));
+%   uv_mean(j)=trapz(time(kstart:kend),uv(j,kstart:kend))/(time(kend)-time(kstart));
+%   wv_mean(j)=trapz(time(kstart:kend),wv(j,kstart:kend))/(time(kend)-time(kstart));
+%   cp_mean(j)=trapz(time(kstart:kend),cp(j,kstart:kend))/(time(kend)-time(kstart));
+%   omega_x_mean(j)=trapz(time(kstart:kend),omega_x(j,kstart:kend))/(time(kend)-time(kstart));
+%   omega_y_mean(j)=trapz(time(kstart:kend),omega_y(j,kstart:kend))/(time(kend)-time(kstart));
+%   omega_z_mean(j)=trapz(time(kstart:kend),omega_z(j,kstart:kend))/(time(kend)-time(kstart));
+%   if (dudy_mean(j)~=0) 
+%     nu_t_mean(j)=-uv_mean(j)/dudy_mean(j);
+%   else
+%     nu_t_mean(j)=0;
+%   end
+%   for n=1:N_TH
+%     thv_mean(j,n)=trapz(time(kstart:kend),thv(j,kstart:kend,n))/(time(kend)-time(kstart));
+%     dthdy_mean(j,n)=trapz(time(kstart:kend),dthdy(j,kstart:kend,n))/(time(kend)-time(kstart));
+%     thrms_mean(j,n)=trapz(time(kstart:kend),thrms(j,kstart:kend,n))/(time(kend)-time(kstart));
+%     thme_mean(j,n)=trapz(time(kstart:kend),thme(j,kstart:kend,n))/(time(kend)-time(kstart));
+%     pe_diss_mean(j,n)=trapz(time(kstart:kend),pe_diss(j,kstart:kend,n))/(time(kend)-time(kstart));
+%     if (dthdy_mean(j,n)~=0) 
+%       kappa_t_mean(j,n)=-thv_mean(j,n)/dthdy_mean(j,n);
+%     else
+%       kappa_t_mean(j,n)=0;
+%     end 
+%   end
+%   shear_mean(j)=trapz(time(kstart:kend),shear(j,kstart:kend))/(time(kend)-time(kstart));
+% end
 
 for j=2:NY
   gy(j)=(gyf(j)+gyf(j-1))/2;    
