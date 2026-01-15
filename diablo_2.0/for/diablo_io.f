@@ -342,10 +342,10 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
          FNAME='out.h5'
       end if
       if (FNAME(len_trim(FNAME)-2:len_trim(FNAME)).eq.".h5") then
-         IF (NUM_PER_DIR.NE.2) THEN
+         IF ((NUM_PER_DIR.NE.2).AND.(NUM_PER_DIR.NE.1)) THEN
             IF (RANK.EQ.0) THEN
             WRITE(6,*) ' SAVING TO HDF5 NOT IMPLEMENTED '
-            WRITE(6,*) ' FOR NUM_PER_DIR DIFFERENT FROM 2'
+            WRITE(6,*) ' FOR NUM_PER_DIR DIFFERENT FROM 2 OR 1'
             END IF
             STOP
          END IF
