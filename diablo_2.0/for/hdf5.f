@@ -227,12 +227,14 @@ c$$$      ! -----------------------------
             dname="U"
          case (2)
 !     Interpolation to the fractional grid
-            call G2GF(U2)
+            call GY2GYF(U2)
             call SWAPZY(U2,tmp)
-            call GF2G(U2)
+            call GYF2GY(U2)
             dname="V"
          case (3)
+            IF (NUM_PER_DIR.EQ.1) call GZ2GZF(U3)
             call SWAPZY(U3,tmp)
+            IF (NUM_PER_DIR.EQ.1) call GZF2GZ(U3)
             dname="W"
          case (4:)
             call SWAPZY(TH(0,0,0,ith-3),tmp)
@@ -498,9 +500,10 @@ c     Dimensions in the memory and in the file
          case (2)
             call SWAPYZ(tmp,U2)
 !     Interpolation to the collocated grid
-            call GF2G(U2)
+            call GYF2GY(U2)
          case (3)
             call SWAPYZ(tmp,U3)
+            IF (NUM_PER_DIR.EQ.1) call GZF2GZ(U3)
          case (4:)
             call SWAPYZ(tmp,TH(0,0,0,ith-3))
          end select
@@ -1304,16 +1307,25 @@ c     Dimensions in the memory and in the file
 
 
 
-
-      subroutine G2GF(var)
-
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+      subroutine GY2GYF(var)
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
       include 'header'
 
       REAL*8 var(0:NX+1,0:NZP+1,0:NY+1)
       INTEGER X,Z,Y
+      INTEGER ZLIM1,ZLIM2
+
+      IF (NUM_PER_DIR.EQ.1) THEN
+         ZLIM1=1
+         ZLIM2=NZP
+      ELSE IF (NUM_PER_DIR.EQ.2) THEN
+         ZLIM1=0
+         ZLIM2=NZP-1
+      END IF      
 
       do x=0,NX-1
-      do z=0,NZP-1
+      do z=ZLIM1,ZLIM2
       if (RANKY.eq.0) var(x,z,1)=var(x,z,2)
       if (RANKY.eq.NPROCY-1) var(x,z,NY+1)=var(x,z,NY)
       do y=1,NY
@@ -1326,13 +1338,22 @@ c     Dimensions in the memory and in the file
 
 
 
-      subroutine GF2G(var)
+      subroutine GYF2GY(var)
 
       include 'header'
 
       REAL*8 var(0:NX+1,0:NZP+1,0:NY+1)
       INTEGER X,Z,Y
       INTEGER XZBOX
+      INTEGER ZLIM1,ZLIM2
+
+      IF (NUM_PER_DIR.EQ.1) THEN
+         ZLIM1=1
+         ZLIM2=NZP
+      ELSE IF (NUM_PER_DIR.EQ.2) THEN
+         ZLIM1=0
+         ZLIM2=NZP-1
+      END IF 
 
       ! Define new data type
       call mpi_type_vector(NZP,NX,NX+2,MPI_DOUBLE_PRECISION,
@@ -1340,25 +1361,25 @@ c     Dimensions in the memory and in the file
       call mpi_type_commit(XZBOX,ierror)
 
       if (RANKY.ne.NPROCY-1) then
-         call mpi_recv(var(0,0,NY+1),1,XZBOX,RANKY+1,101+RANKY,
+         call mpi_recv(var(0,ZLIM1,NY+1),1,XZBOX,RANKY+1,101+RANKY,
      &     MPI_COMM_Y,status,ierror)
       else
          do x=0,NX-1
-         do z=0,NZP-1
+         do z=ZLIM1,ZLIM2
             var(x,z,NY+1)=var(x,z,NY)
          end do
          end do
       end if
 
       do x=0,NX-1
-      do z=0,NZP-1
+      do z=ZLIM1,ZLIM2
       do y=NY,1,-1
          var(x,z,y)=2*var(x,z,y)-var(x,z,y+1)
       end do
       end do
       end do
 
-      if (RANKY.ne.0) call mpi_send(var(0,0,2),1,
+      if (RANKY.ne.0) call mpi_send(var(0,ZLIM1,2),1,
      &     XZBOX,RANKY-1,100+RANKY,
      &     MPI_COMM_Y,ierror)
 
@@ -1366,6 +1387,72 @@ c     Dimensions in the memory and in the file
       ! code in order to have zero mass flux
       if (RANKY.eq.0) var(:,:,1)=-var(:,:,2)
       if (RANKY.eq.NPROCY-1) var(:,:,NY+1)=-var(:,:,NY)
+
+      end subroutine
+
+
+
+
+      subroutine GZ2GZF(var)
+
+      include 'header'
+
+      REAL*8 var(0:NX+1,0:NZP+1,0:NY+1)
+      INTEGER X,Z,Y
+
+      do x=0,NX-1
+      do y=1,NY
+      if (RANKZ.eq.0) var(x,1,y)=var(x,2,y)
+      if (RANKZ.eq.NPROCZ-1) var(x,NZP+1,y)=var(x,NZP,y)
+      do z=1,NZP
+         var(x,z,y)=0.5*(var(x,z,y)+var(x,z+1,y))
+      end do
+      end do
+      end do
+
+      end subroutine
+
+
+      subroutine GZF2GZ(var)
+
+      include 'header'
+
+      REAL*8 var(0:NX+1,0:NZP+1,0:NY+1)
+      INTEGER X,Z,Y
+      INTEGER XYBOX
+
+      ! Define new data type
+      call mpi_type_vector(NY,NX,(NX+2)*(NY+2),MPI_DOUBLE_PRECISION,
+     &     XYBOX,ierror)
+      call mpi_type_commit(XYBOX,ierror)
+
+      if (RANKZ.ne.NPROCZ-1) then
+         call mpi_recv(var(0,NZP+1,1),1,XYBOX,RANKZ+1,101+RANKZ,
+     &     MPI_COMM_Z,status,ierror)
+      else
+         do x=0,NX-1
+         do y=1,NY
+            var(x,NZP+1,y)=var(x,NZP,y)
+         end do
+         end do
+      end if
+
+      do x=0,NX-1
+      do y=1,NY
+      do z=NZP,1,-1
+         var(x,z,y)=2*var(x,z,y)-var(x,z+1,y)
+      end do
+      end do
+      end do
+
+      if (RANKZ.ne.0) call mpi_send(var(0,2,1),1,
+     &     XYBOX,RANKZ-1,100+RANKZ,
+     &     MPI_COMM_Z,ierror)
+
+      ! Impose the values at the boundary as prescribed in the
+      ! code in order to have zero mass flux
+      if (RANKZ.eq.0) var(:,1,:)=-var(:,2,:)
+      if (RANKZ.eq.NPROCZ-1) var(:,NZP+1,:)=-var(:,NZP,:)
 
       end subroutine
 
