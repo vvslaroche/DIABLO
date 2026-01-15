@@ -332,8 +332,6 @@ c$$$      ! -----------------------------
         end do
       END IF
 
-      ! call mpi_finalize(ierror)
-      ! stop
 
       end subroutine WriteHDF5
 
