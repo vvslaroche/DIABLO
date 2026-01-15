@@ -1382,13 +1382,23 @@ c     Dimensions in the memory and in the file
       INTEGER X,Z,Y
 
       out=0.d0
-      do x=0,NX-1
-         do y=1,NY
-            do z=0,NZP-1
-               out(x+1,y,z+1)=in(x,z,y)
+      IF (NUM_PER_DIR.EQ.1) THEN
+         do x=0,NX-1
+            do y=1,NY
+               do z=1,NZP
+                  out(x+1,y,z)=in(x,z,y)
+               end do
             end do
          end do
-      end do
+      ELSE IF (NUM_PER_DIR.EQ.2) THEN
+         do x=0,NX-1
+            do y=1,NY
+               do z=0,NZP-1
+                  out(x+1,y,z+1)=in(x,z,y)
+               end do
+            end do
+         end do
+      END IF
 
       end subroutine
 
@@ -1404,13 +1414,23 @@ c     Dimensions in the memory and in the file
       INTEGER X,Z,Y
 
       out=0.d0
-      do x=0,NX-1
-         do y=1,NY
-            do z=0,NZP-1
-               out(x,z,y)=in(x+1,y,z+1)
+      IF (NUM_PER_DIR.EQ.1) THEN
+         do x=0,NX-1
+            do y=1,NY
+               do z=1,NZP
+                  out(x,z,y)=in(x+1,y,z)
+               end do
             end do
          end do
-      end do
+      ELSE IF (NUM_PER_DIR.EQ.2) THEN
+         do x=0,NX-1
+            do y=1,NY
+               do z=0,NZP-1
+                  out(x,z,y)=in(x+1,y,z+1)
+               end do
+            end do
+         end do
+      END IF
 
       end subroutine
 
