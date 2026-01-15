@@ -68,7 +68,6 @@ c     Dimensions in the memory and in the file
       chunk_dims(2) = 1
       chunk_dims(3) = NZP
 
-      block(3) = NZP
       blockk(1) = NX
 
 !     Stride and count for number of rows and columns in each dimension
@@ -77,9 +76,8 @@ c     Dimensions in the memory and in the file
 
 !     Offset determined by the rank of a processor
       offset(1) = 0
-      offset(3) = NZP*RANKZ
 
-      offset_m(1:3)=0
+      offset_m(1)=0
       if (RANKY.eq.0) then
          blockk(2) =  NY
          offset(2) = 0
@@ -89,6 +87,22 @@ c     Dimensions in the memory and in the file
          offset(2) = RANKY*(NY-1)+1
          offset_m(2)=1
       end if
+
+      IF (NUM_PER_DIR.EQ.1) THEN
+        IF (RANKZ.EQ.0) THEN
+          blockk(3) = NZP
+          offset(3) = 0
+          offset_m(3) = 0
+        ELSE
+          blockk(3) = NZP-1
+          offset(3) = RANKZ*(NZP-1)+1
+          offset_m(3) = 1
+        END IF
+      ELSE IF (NUM_PER_DIR.EQ.2) THEN
+        blockk(3) = NZP
+        offset(3) = NZP*RANKZ
+        offset_m(3) = 0
+      END IF
 
 !     Initialize interface
       call h5open_f(error)
@@ -171,14 +185,25 @@ c$$$      ! -----------------------------
       call h5sclose_f(tspace,error)
 
       ! Convert to physical space
-      call fft_xz_to_physical(CU1,U1,0,NY+1)
-      call fft_xz_to_physical(CU2,U2,0,NY+1)
-      call fft_xz_to_physical(CU3,U3,0,NY+1)
-      do ith=1,N_TH
-         CS1(:,:,:)=CTH(:,:,:,ith)
-         call fft_xz_to_physical(CS1,S1,0,NY+1)
-         TH(:,:,:,ith)=S1(:,:,:)
-      end do
+      IF (NUM_PER_DIR.EQ.1) THEN
+        call fft_x_to_physical(CU1,U1,0,NY+1)
+        call fft_x_to_physical(CU2,U2,0,NY+1)
+        call fft_x_to_physical(CU3,U3,0,NY+1)
+        do ith=1,N_TH
+           CS1(:,:,:)=CTH(:,:,:,ith)
+           call fft_x_to_physical(CS1,S1,0,NY+1)
+           TH(:,:,:,ith)=S1(:,:,:)
+        end do
+      ELSE IF (NUM_PER_DIR.EQ.2) THEN
+        call fft_xz_to_physical(CU1,U1,0,NY+1)
+        call fft_xz_to_physical(CU2,U2,0,NY+1)
+        call fft_xz_to_physical(CU3,U3,0,NY+1)
+        do ith=1,N_TH
+           CS1(:,:,:)=CTH(:,:,:,ith)
+           call fft_xz_to_physical(CS1,S1,0,NY+1)
+           TH(:,:,:,ith)=S1(:,:,:)
+        end do
+      END IF
 
 !     Create property list for the chunked dataset creation
       call h5pcreate_f(H5P_DATASET_CREATE_F, plist_id_d, error)
@@ -238,7 +263,11 @@ c$$$      ! -----------------------------
 
 !     In the case of saving for the pressure as well
       if (SAVE_PRESSURE) then
-         call fft_xz_to_physical(CP,P,0,NY+1)
+         IF (NUM_PER_DIR.EQ.1) THEN
+           call fft_x_to_physical(CP,P,0,NY+1)
+         ELSE IF (NUM_PER_DIR.EQ.2) THEN
+           call fft_xz_to_physical(CP,P,0,NY+1)
+         END IF
 
          call SWAPZY(P,tmp)
          dname="P"
@@ -262,7 +291,11 @@ c$$$      ! -----------------------------
 
 !     Close dateset
          call h5dclose_f(dset_id, error)
-         call fft_xz_to_fourier(P,CP,0,NY+1)
+         IF (NUM_PER_DIR.EQ.1) THEN
+           call fft_x_to_fourier(P,CP,0,NY+1)
+         ELSE IF (NUM_PER_DIR.EQ.2) THEN
+           call fft_xz_to_fourier(P,CP,0,NY+1)
+         END IF
       end if
 
 !     Close the dataspace for the memory and for the file
@@ -278,14 +311,26 @@ c$$$      ! -----------------------------
       call h5fclose_f(file_id, error)
       call h5close_f(error)
 
-      call fft_xz_to_fourier(U1,CU1,0,NY+1)
-      call fft_xz_to_fourier(U2,CU2,0,NY+1)
-      call fft_xz_to_fourier(U3,CU3,0,NY+1)
-      do ith=1,N_TH
-         S1(:,:,:)=TH(:,:,:,ith)
-         call fft_xz_to_fourier(S1,CS1,0,NY+1)
-         CTH(:,:,:,ith)=CS1(:,:,:)
-      end do
+      ! Convert to fourier space
+      IF (NUM_PER_DIR.EQ.1) THEN
+        call fft_x_to_fourier(U1,CU1,0,NY+1)
+        call fft_x_to_fourier(U2,CU2,0,NY+1)
+        call fft_x_to_fourier(U3,CU3,0,NY+1)
+        do ith=1,N_TH
+           S1(:,:,:)=TH(:,:,:,ith)
+           call fft_x_to_fourier(S1,CS1,0,NY+1)
+           CTH(:,:,:,ith)=CS1(:,:,:)
+        end do
+      ELSE IF (NUM_PER_DIR.EQ.2) THEN
+        call fft_xz_to_fourier(U1,CU1,0,NY+1)
+        call fft_xz_to_fourier(U2,CU2,0,NY+1)
+        call fft_xz_to_fourier(U3,CU3,0,NY+1)
+        do ith=1,N_TH
+           S1(:,:,:)=TH(:,:,:,ith)
+           call fft_xz_to_fourier(S1,CS1,0,NY+1)
+           CTH(:,:,:,ith)=CS1(:,:,:)
+        end do
+      END IF
 
       ! call mpi_finalize(ierror)
       ! stop
@@ -973,7 +1018,6 @@ c     Dimensions in the memory and in the file
       dimsm(1:2) = (/NX,NZP/)
       dimsf(1:2) = (/NX,NZ/)
 
-      block(2) = NZP
       blockk(1) = NX
 
 !     Stride and count for number of rows and columns in each dimension
@@ -982,9 +1026,23 @@ c     Dimensions in the memory and in the file
 
 !     Offset determined by the rank of a processor
       offset(1) = 0
-      offset(2) = NZP*RANKZ
 
       offset_m(1:2)=0
+      IF (NUM_PER_DIR.EQ.1) THEN
+        IF (RANKZ.EQ.0) THEN
+          blockk(2) = NZP
+          offset(2) = 0
+          offset_m(2) = 0
+        ELSE
+          blockk(2) = NZP-1
+          offset(2) = RANKZ*(NZP-1)+1
+          offset_m(2) = 1
+        END IF
+      ELSE IF (NUM_PER_DIR.EQ.2) THEN
+        blockk(2) = NZP
+        offset(2) = NZP*RANKZ
+        offset_m(2) = 0
+      END IF
 
 !     *********************
 !     FINISH DEFINITION
@@ -1121,16 +1179,13 @@ c     Dimensions in the memory and in the file
       dimsm(1:2) = (/NZP,NY/)
       dimsf(1:2) = (/NZ,(NY-1)*NPROCY+1/)
 
-      block(1) = NZP
 
 !     Stride and count for number of rows and columns in each dimension
       stride = 1
       count  = 1
 
 !     Offset determined by the rank of a processor
-      offset(1) = NZP*RANKZ
       offset_m(1:2)=0
-
       if (RANKY.eq.0) then
          blockk(2) =  NY
          offset(2) = 0
@@ -1140,6 +1195,22 @@ c     Dimensions in the memory and in the file
          offset(2) = RANKY*(NY-1)+1
          offset_m(2)=1
       end if
+
+      IF (NUM_PER_DIR.EQ.1) THEN
+        IF (RANKZ.EQ.0) THEN
+          blockk(1) = NZP
+          offset(1) = 0
+          offset_m(1) = 0
+        ELSE
+          blockk(1) = NZP-1
+          offset(1) = RANKZ*(NZP-1)+1
+          offset_m(1) = 1
+        END IF
+      ELSE IF (NUM_PER_DIR.EQ.2) THEN
+        blockk(1) = NZP
+        offset(1) = NZP*RANKZ
+        offset_m(1) = 0
+      END IF
 
 !     *********************
 !     FINISH DEFINITION
