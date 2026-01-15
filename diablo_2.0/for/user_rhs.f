@@ -193,10 +193,24 @@ C Note, that each cell has the same volume, so we can just average over all poin
       RETURN
       END
 
+
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
       SUBROUTINE USER_RHS_DUCT_PHYSICAL
-      include 'header'
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+      INCLUDE 'header'
+
       RETURN
       END
+
+
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+      SUBROUTINE USER_RHS_DUCT_FOURIER
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+      INCLUDE 'header'
+
+      RETURN
+      END
+
 
       SUBROUTINE USER_RHS_CAVITY_PHYSICAL
       include 'header'
