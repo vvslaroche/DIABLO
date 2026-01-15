@@ -29,7 +29,7 @@ c     Dimensions in the memory and in the file
       integer(hsize_t), dimension(3) :: dimsm,dimsf
 
       integer(hsize_t), dimension(3) :: chunk_dims, count, offset
-      integer(hsize_t), dimension(3) :: stride, block, offset_m
+      integer(hsize_t), dimension(3) :: stride, blockk, offset_m
 
       integer :: rHDF5 = 3, arank = 1
 
@@ -68,8 +68,8 @@ c     Dimensions in the memory and in the file
       chunk_dims(2) = 1
       chunk_dims(3) = NZP
 
-      block(1) = NX
       block(3) = NZP
+      blockk(1) = NX
 
 !     Stride and count for number of rows and columns in each dimension
       stride = 1
@@ -81,11 +81,11 @@ c     Dimensions in the memory and in the file
 
       offset_m(1:3)=0
       if (RANKY.eq.0) then
-         block(2) =  NY
+         blockk(2) =  NY
          offset(2) = 0
          offset_m(2)=0
       else
-         block(2) = (NY-1)
+         blockk(2) = (NY-1)
          offset(2) = RANKY*(NY-1)+1
          offset_m(2)=1
       end if
@@ -221,10 +221,10 @@ c$$$      ! -----------------------------
 !     Select hyperslab in the file.
 !     call h5dget_space_f(dsetur_id, selspace_id, error)
          call h5sselect_hyperslab_f (filspace_id, H5S_SELECT_SET_F,
-     &        offset, count, error, stride, block)
+     &        offset, count, error, stride, blockk)
 
          call h5sselect_hyperslab_f (memspace_id, H5S_SELECT_SET_F,
-     +        offset_m, count, error, stride, block)
+     +        offset_m, count, error, stride, blockk)
 
 !     Write the dataset collectively
          call h5dwrite_f(dset_id, H5T_NATIVE_DOUBLE,
@@ -249,10 +249,10 @@ c$$$      ! -----------------------------
 !     Select hyperslab in the file.
 !     call h5dget_space_f(dsetur_id, selspace_id, error)
          call h5sselect_hyperslab_f (filspace_id, H5S_SELECT_SET_F,
-     &        offset, count, error, stride, block)
+     &        offset, count, error, stride, blockk)
 
          call h5sselect_hyperslab_f (memspace_id, H5S_SELECT_SET_F,
-     +        offset_m, count, error, stride, block)
+     +        offset_m, count, error, stride, blockk)
 
 !     Write the dataset collectively
          call h5dwrite_f(dset_id, H5T_NATIVE_DOUBLE,
@@ -321,7 +321,7 @@ c     Dimensions in the memory and in the file
       integer(hsize_t), dimension(3) :: dimsm,dimsf
 
       integer(hsize_t), dimension(3) :: count, offset
-      integer(hsize_t), dimension(3) :: stride, block, offset_m
+      integer(hsize_t), dimension(3) :: stride, blockk, offset_m
 
       integer :: rHDF5 = 3
 
@@ -347,8 +347,8 @@ c     Dimensions in the memory and in the file
 !     on the way back we just invert the relation in order to have
 !     exact values.
 
-      block(1) = NX
-      block(3) = NZP
+      blockk(1) = NX
+      blockk(3) = NZP
 
 !     Stride and count for number of rows and columns in each dimension
       stride = 1
@@ -358,7 +358,7 @@ c     Dimensions in the memory and in the file
       offset(1) = 0
       offset(3) = RANKZ*NZP
 
-      block(2) =  NY
+      blockk(2) =  NY
       offset(2) = RANKY*(NY-1)
 
 !     Initialize interface
@@ -437,11 +437,11 @@ c     Dimensions in the memory and in the file
 
 !     Select hyperslab in the file.
          call h5sselect_hyperslab_f (filspace_id, H5S_SELECT_SET_F,
-     &        offset, count, error, stride, block)
+     &        offset, count, error, stride, blockk)
 
          offset_m(1:3)=0
          call h5sselect_hyperslab_f (memspace_id, H5S_SELECT_SET_F,
-     +        offset_m, count, error, stride, block)
+     +        offset_m, count, error, stride, blockk)
 
 !     Write the dataset collectively
          call h5dread_f(dset_id, H5T_NATIVE_DOUBLE,
@@ -480,11 +480,11 @@ c     Dimensions in the memory and in the file
 
 !     Select hyperslab in the file.
          call h5sselect_hyperslab_f (filspace_id, H5S_SELECT_SET_F,
-     &        offset, count, error, stride, block)
+     &        offset, count, error, stride, blockk)
 
          offset_m(1:3)=0
          call h5sselect_hyperslab_f (memspace_id, H5S_SELECT_SET_F,
-     +        offset_m, count, error, stride, block)
+     +        offset_m, count, error, stride, blockk)
 
 !     Write the dataset collectively
          call h5dread_f(dset_id, H5T_NATIVE_DOUBLE,
@@ -567,7 +567,7 @@ c     Dimensions in the memory and in the file
       integer(hsize_t),dimension(1)  :: idims,imaxd
 
       integer(hsize_t),dimension(1)  :: count, offset
-      integer(hsize_t),dimension(1)  :: stride, block, offset_m
+      integer(hsize_t),dimension(1)  :: stride, blockk, offset_m
 
       integer           :: error,rHDF5,ith
 
@@ -608,7 +608,7 @@ c$$$      call h5aclose_f(aid, error)
          count  = 1
 
 !     Offset determined by the rank of a processor
-         block  =  NY+1
+         blockk  =  NY+1
          offset =  RANKY*(NY-1)
       case(3)
          cname='z'
@@ -621,7 +621,7 @@ c$$$      call h5aclose_f(aid, error)
          count  = 1
 
 !     Offset determined by the rank of a processor
-         block  =  NZP+1
+         blockk  =  NZP+1
          offset =  RANKZ*(NZP-1)
       end select
 
@@ -656,11 +656,11 @@ c$$$      call h5aclose_f(aid, error)
 
 !     Select hyperslab in the file.
       call h5sselect_hyperslab_f (filspace_id, H5S_SELECT_SET_F,
-     &     offset, count, error, stride, block)
+     &     offset, count, error, stride, blockk)
 
       offset_m=1
       call h5sselect_hyperslab_f (memspace_id, H5S_SELECT_SET_F,
-     +     offset_m, count, error, stride, block)
+     +     offset_m, count, error, stride, blockk)
 
 
 !     Write the dataset collectively
@@ -805,7 +805,7 @@ c     Dimensions in the memory and in the file
       logical flage
 
       integer(hsize_t), dimension(2) :: count, offset
-      integer(hsize_t), dimension(2) :: stride, block, offset_m
+      integer(hsize_t), dimension(2) :: stride, blockk, offset_m
 
       ! integer(hsize_t)  ::  my_dim
       integer error, i, j
@@ -817,7 +817,7 @@ c     Dimensions in the memory and in the file
       dimsm(1:2) = (/NX,NY/)
       dimsf(1:2) = (/NX,(NY-1)*NPROCY+1/)
 
-      block(1) = NX
+      blockk(1) = NX
 
 !     Stride and count for number of rows and columns in each dimension
       stride = 1
@@ -828,11 +828,11 @@ c     Dimensions in the memory and in the file
 
       offset_m(1:2)=0
       if (RANKY.eq.0) then
-         block(2) =  NY
+         blockk(2) =  NY
          offset(2) = 0
          offset_m(2)=0
       else
-         block(2) = (NY-1)
+         blockk(2) = (NY-1)
          offset(2) = RANKY*(NY-1)+1
          offset_m(2)=1
       end if
@@ -895,9 +895,9 @@ c     Dimensions in the memory and in the file
       call h5screate_simple_f(rHDF5, dimsm, memspace_id, error)
 
       call h5sselect_hyperslab_f (filspace_id, H5S_SELECT_SET_F,
-     &        offset, count, error, stride, block)
+     &        offset, count, error, stride, blockk)
       call h5sselect_hyperslab_f (memspace_id, H5S_SELECT_SET_F,
-     +        offset_m, count, error, stride, block)
+     +        offset_m, count, error, stride, blockk)
 
       call h5aopen_f(gid,'SAMPLES',aid,error)
       call h5awrite_f(aid,H5T_NATIVE_INTEGER,NSAMP,adims,error)
@@ -961,7 +961,7 @@ c     Dimensions in the memory and in the file
       logical flage
 
       integer(hsize_t), dimension(2) :: count, offset
-      integer(hsize_t), dimension(2) :: stride, block, offset_m
+      integer(hsize_t), dimension(2) :: stride, blockk, offset_m
 
       ! integer(hsize_t)  ::  my_dim
       integer error, i, j
@@ -973,8 +973,8 @@ c     Dimensions in the memory and in the file
       dimsm(1:2) = (/NX,NZP/)
       dimsf(1:2) = (/NX,NZ/)
 
-      block(1) = NX
       block(2) = NZP
+      blockk(1) = NX
 
 !     Stride and count for number of rows and columns in each dimension
       stride = 1
@@ -1044,9 +1044,9 @@ c     Dimensions in the memory and in the file
       call h5screate_simple_f(rHDF5, dimsm, memspace_id, error)
 
       call h5sselect_hyperslab_f (filspace_id, H5S_SELECT_SET_F,
-     &        offset, count, error, stride, block)
+     &        offset, count, error, stride, blockk)
       call h5sselect_hyperslab_f (memspace_id, H5S_SELECT_SET_F,
-     +        offset_m, count, error, stride, block)
+     +        offset_m, count, error, stride, blockk)
 
       call h5aopen_f(gid,'SAMPLES',aid,error)
       call h5awrite_f(aid,H5T_NATIVE_INTEGER,NSAMP,adims,error)
@@ -1109,7 +1109,7 @@ c     Dimensions in the memory and in the file
       logical flage
 
       integer(hsize_t), dimension(2) :: count, offset
-      integer(hsize_t), dimension(2) :: stride, block, offset_m
+      integer(hsize_t), dimension(2) :: stride, blockk, offset_m
 
       ! integer(hsize_t)  ::  my_dim
       integer error, i, j
@@ -1132,11 +1132,11 @@ c     Dimensions in the memory and in the file
       offset_m(1:2)=0
 
       if (RANKY.eq.0) then
-         block(2) =  NY
+         blockk(2) =  NY
          offset(2) = 0
          offset_m(2)=0
       else
-         block(2) = (NY-1)
+         blockk(2) = (NY-1)
          offset(2) = RANKY*(NY-1)+1
          offset_m(2)=1
       end if
@@ -1199,9 +1199,9 @@ c     Dimensions in the memory and in the file
       call h5screate_simple_f(rHDF5, dimsm, memspace_id, error)
 
       call h5sselect_hyperslab_f (filspace_id, H5S_SELECT_SET_F,
-     &        offset, count, error, stride, block)
+     &        offset, count, error, stride, blockk)
       call h5sselect_hyperslab_f (memspace_id, H5S_SELECT_SET_F,
-     +        offset_m, count, error, stride, block)
+     +        offset_m, count, error, stride, blockk)
 
       call h5aopen_f(gid,'SAMPLES',aid,error)
       call h5awrite_f(aid,H5T_NATIVE_INTEGER,NSAMP,adims,error)
@@ -1433,7 +1433,7 @@ C     Dimensions in the memory and in the file
       logical flage
 
       integer(hsize_t), dimension(1) :: count, offset
-      integer(hsize_t), dimension(1) :: stride, block, offset_m
+      integer(hsize_t), dimension(1) :: stride, blockk, offset_m
 
       ! integer(hsize_t)  ::  my_dim
       integer error, i, j
@@ -1445,7 +1445,7 @@ C     Dimensions in the memory and in the file
       NSAMP=1
       dims=1
       stride=1
-      block=1
+      blockk=1
       count=1
       dimsf=1
 
@@ -1494,7 +1494,7 @@ C     Dimensions in the memory and in the file
 
       call h5screate_simple_f(rHDF5, dimsf, filspace_id, error)
       call h5sselect_hyperslab_f (filspace_id, H5S_SELECT_SET_F,
-     &        offset, count, error, stride, block)
+     &        offset, count, error, stride, blockk)
 
 ! Write the new number of samples to the file
       call h5aopen_f(gid,'SAMPLES',aid,error)
@@ -1556,7 +1556,7 @@ C     Dimensions in the memory and in the file
       logical flage
 
       integer(hsize_t), dimension(1) :: count, offset
-      integer(hsize_t), dimension(1) :: stride, block, offset_m
+      integer(hsize_t), dimension(1) :: stride, blockk, offset_m
 
       ! integer(hsize_t)  ::  my_dim
       integer error, i, j
@@ -1577,11 +1577,11 @@ C     Dimensions in the memory and in the file
 
 !      offset_m(1:2)=0
       if (RANKY.eq.0) then
-         block =  NY
+         blockk =  NY
          offset = 0
          offset_m=0
       else
-         block = (NY-1)
+         blockk = (NY-1)
          offset = RANKY*(NY-1)+1
          offset_m=1
       end if
@@ -1644,9 +1644,9 @@ C     Dimensions in the memory and in the file
       call h5screate_simple_f(rHDF5, dimsm, memspace_id, error)
 
       call h5sselect_hyperslab_f (filspace_id, H5S_SELECT_SET_F,
-     &        offset, count, error, stride, block)
+     &        offset, count, error, stride, blockk)
       call h5sselect_hyperslab_f (memspace_id, H5S_SELECT_SET_F,
-     +        offset_m, count, error, stride, block)
+     +        offset_m, count, error, stride, blockk)
 
       call h5aopen_f(gid,'SAMPLES',aid,error)
       call h5awrite_f(aid,H5T_NATIVE_INTEGER,NSAMP,adims,error)
@@ -1716,7 +1716,7 @@ C     Dimensions in the memory and in the file
       logical flage
 
       integer(hsize_t), dimension(1) :: count, offset
-      integer(hsize_t), dimension(1) :: stride, block, offset_m
+      integer(hsize_t), dimension(1) :: stride, blockk, offset_m
       
       ! integer(hsize_t)  ::  my_dim
       integer error, i, j
@@ -1737,11 +1737,11 @@ C     Dimensions in the memory and in the file
 
 !      offset_m(1:2)=0
 !      if (RANKY.eq.0) then
-         block =  nbins
+         blockk =  nbins
          offset = 0
          offset_m=0
 !      else
-!         block = (nbins-1)
+!         blockk = (nbins-1)
 !         offset = RANKY*(nbins-1)+1
 !         offset_m=1
 !      end if
@@ -1797,7 +1797,7 @@ C     Dimensions in the memory and in the file
       call h5screate_simple_f(rHDF5, dimsf, filspace_id, error)
 
       call h5sselect_hyperslab_f (filspace_id, H5S_SELECT_SET_F, 
-     &        offset, count, error, stride, block)
+     &        offset, count, error, stride, blockk)
       
       call h5aopen_f(gid1,'SAMPLES',aid1,error)
       call h5awrite_f(aid1,H5T_NATIVE_INTEGER,NSAMP,adims,error)
@@ -1850,7 +1850,7 @@ C     Dimensions in the memory and in the file
       call h5screate_simple_f(rHDF5, dimsf, filspace_id2, error)
 
       call h5sselect_hyperslab_f (filspace_id2, H5S_SELECT_SET_F, 
-     &        offset, count, error, stride, block)
+     &        offset, count, error, stride, blockk)
       
       call h5aopen_f(gid2,'SAMPLES',aid2,error)
       call h5awrite_f(aid2,H5T_NATIVE_INTEGER,NSAMP,adims,error)
@@ -1902,7 +1902,7 @@ C     Dimensions in the memory and in the file
       call h5screate_simple_f(rHDF5, dimsf, filspace_id3, error)
 
       call h5sselect_hyperslab_f (filspace_id3, H5S_SELECT_SET_F, 
-     &        offset, count, error, stride, block)
+     &        offset, count, error, stride, blockk)
       
       call h5aopen_f(gid3,'SAMPLES',aid3,error)
       call h5awrite_f(aid3,H5T_NATIVE_INTEGER,NSAMP,adims,error)
@@ -1962,7 +1962,7 @@ c$$$c     Dimensions in the memory and in the file
 c$$$      integer(hsize_t), dimension(3) :: dimsm,dimsf
 c$$$
 c$$$      integer(hsize_t), dimension(3) :: chunk_dims, count, offset
-c$$$      integer(hsize_t), dimension(3) :: stride, block, offset_m
+c$$$      integer(hsize_t), dimension(3) :: stride, blockk, offset_m
 c$$$
 c$$$      integer :: rHDF5 = 3, arank = 1
 c$$$
@@ -2004,8 +2004,8 @@ c$$$      chunk_dims(1) = NX
 c$$$      chunk_dims(2) = 1
 c$$$      chunk_dims(3) = NZP
 c$$$
-c$$$      block(1) = NX
-c$$$      block(3) = NZP
+c$$$      blockk(1) = NX
+c$$$      blockk(3) = NZP
 c$$$
 c$$$!     Stride and count for number of rows and columns in each dimension
 c$$$      stride = 1
@@ -2016,18 +2016,18 @@ c$$$      offset(1) = 0
 c$$$      offset(3) = NZP*RANKZ
 c$$$
 c$$$c$$$      if (RANK.eq.(NPROCS-1)) then
-c$$$c$$$         block(2) =  NY
+c$$$c$$$         blockk(2) =  NY
 c$$$c$$$      else
-c$$$c$$$         block(2) = (NY-1)
+c$$$c$$$         blockk(2) = (NY-1)
 c$$$c$$$      end if
 c$$$c$$$      offset(2) = RANK*(NY-1)
 c$$$      offset_m(1:3)=0
 c$$$      if (RANKY.eq.0) then
-c$$$         block(2) =  NY
+c$$$         blockk(2) =  NY
 c$$$         offset(2) = 0
 c$$$         offset_m(2)=0
 c$$$      else
-c$$$         block(2) = (NY-1)
+c$$$         blockk(2) = (NY-1)
 c$$$         offset(2) = RANKY*(NY-1)+1
 c$$$         offset_m(2)=1
 c$$$      end if
@@ -2073,10 +2073,10 @@ c$$$
 c$$$!     Select hyperslab in the file.
 c$$$!     call h5dget_space_f(dsetur_id, selspace_id, error)
 c$$$      call h5sselect_hyperslab_f (filspace_id, H5S_SELECT_SET_F,
-c$$$     &     offset, count, error, stride, block)
+c$$$     &     offset, count, error, stride, blockk)
 c$$$
 c$$$      call h5sselect_hyperslab_f (memspace_id, H5S_SELECT_SET_F,
-c$$$     +     offset_m, count, error, stride, block)
+c$$$     +     offset_m, count, error, stride, blockk)
 c$$$
 c$$$!     Write the dataset collectively
 c$$$      call h5dwrite_f(dset_id, H5T_NATIVE_DOUBLE,
@@ -2143,7 +2143,7 @@ c$$$c     Dimensions in the memory and in the file
 c$$$      integer(hsize_t), dimension(3) :: dimsm,dimsf
 c$$$
 c$$$      integer(hsize_t), dimension(3) :: chunk_dims, count, offset
-c$$$      integer(hsize_t), dimension(3) :: stride, block, offset_m
+c$$$      integer(hsize_t), dimension(3) :: stride, blockk, offset_m
 c$$$
 c$$$      integer :: rHDF5 = 3, arank = 1
 c$$$
@@ -2186,8 +2186,8 @@ c$$$      chunk_dims(1) = NX
 c$$$      chunk_dims(2) = 1
 c$$$      chunk_dims(3) = NZP
 c$$$
-c$$$      block(1) = NX
-c$$$      block(3) = NZP
+c$$$      blockk(1) = NX
+c$$$      blockk(3) = NZP
 c$$$
 c$$$!     Stride and count for number of rows and columns in each dimension
 c$$$      stride = 1
@@ -2198,18 +2198,18 @@ c$$$      offset(1) = 0
 c$$$      offset(3) = RANKZ*NZP
 c$$$
 c$$$c$$$      if (RANK.eq.(NPROCS-1)) then
-c$$$c$$$         block(2) =  NY
+c$$$c$$$         blockk(2) =  NY
 c$$$c$$$      else
-c$$$c$$$         block(2) = (NY-1)
+c$$$c$$$         blockk(2) = (NY-1)
 c$$$c$$$      end if
 c$$$c$$$      offset(2) = RANK*(NY-1)
 c$$$      offset_m(1:3)=0
 c$$$      if (RANKY.eq.0) then
-c$$$         block(2) =  NY
+c$$$         blockk(2) =  NY
 c$$$         offset(2) = 0
 c$$$         offset_m(2)=0
 c$$$      else
-c$$$         block(2) = (NY-1)
+c$$$         blockk(2) = (NY-1)
 c$$$         offset(2) = RANKY*(NY-1)+1
 c$$$         offset_m(2)=1
 c$$$      end if
@@ -2255,10 +2255,10 @@ c$$$
 c$$$!     Select hyperslab in the file.
 c$$$!     call h5dget_space_f(dsetur_id, selspace_id, error)
 c$$$      call h5sselect_hyperslab_f (filspace_id, H5S_SELECT_SET_F,
-c$$$     &     offset, count, error, stride, block)
+c$$$     &     offset, count, error, stride, blockk)
 c$$$
 c$$$      call h5sselect_hyperslab_f (memspace_id, H5S_SELECT_SET_F,
-c$$$     +     offset_m, count, error, stride, block)
+c$$$     +     offset_m, count, error, stride, blockk)
 c$$$
 c$$$!     Write the dataset collectively
 c$$$      call h5dwrite_f(dset_id, H5T_NATIVE_DOUBLE,
