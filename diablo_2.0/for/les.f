@@ -863,3 +863,10 @@ C For use in the LES model in channel flow (2 periodic directions)
 
 
 
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+      SUBROUTINE LES_DUCT
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+      INCLUDE 'header'
+
+      RETURN
+      END
