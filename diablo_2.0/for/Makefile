@@ -11,7 +11,11 @@ COMPILER = gfortran
 
 # Any desired options for the compiler (e.g. -O2, -g, etc.)
 USEROPTS = -O3 -cpp -fallow-argument-mismatch -w
+# USEROPTS = -cpp -O0 -g -fcheck=all -Wall -fbacktrace -Wno-unused
 # -fbacktrace -g -fbounds-check -w
+# -O0 -g -fcheck=all -Wall -fbacktrace
+# -ffpe-trap=zero
+# -fallow-argument-mismatch -w
 
 # Location where fftw and netcdf (optional) libraries are installed
 LINKDIR = /usr/local/lib
