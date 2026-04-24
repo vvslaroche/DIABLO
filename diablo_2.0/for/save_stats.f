@@ -204,7 +204,7 @@ C Apply Boundary conditions to velocity field
 
 ! Compute the Reynolds stress and mean velocity gradient
 ! Here, uv and wv are defined on the GY grid
-! uv is defined on the GYF grid
+! uw is defined on the GYF grid
       do j=1,NY
         uv(j)=0. 
         uw(j)=0.
@@ -1211,3 +1211,471 @@ C Convert velocity back to Fourier space
 
 
 
+
+
+
+
+
+
+
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+      SUBROUTINE SAVE_STATS_DUCT(FINAL)
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+      INCLUDE 'header'
+
+      CHARACTER*35 FNAME
+      CHARACTER*20 GNAME
+      LOGICAL FINAL
+      integer i,j,k,n
+      real*8 uc, ubulk
+    
+! This variable is used to add up scalar diagnostics
+      real*8 thsum(0:NY+1)
+! These variables are used to store and write 2D slices 
+      real*8 varxy(0:NXM,1:NY),varzy(0:NZP-1,1:NY),varxz(0:NXM,0:NZP-1)
+      ! real*8 varxy(0:NXM,1:NY),varzy(1:NZP,1:NY),varxz(0:NXM,0:NZP-1)
+! These variable are used for HDF5 writing
+      real*8 Diag(1:NY)
+
+      IF (RANK.EQ.0) 
+     &     WRITE(6,*) 'Saving flow statistics.'
+
+      IF (USE_MPI) THEN
+        call mpi_barrier(MPI_COMM_WORLD,ierror)
+        CALL GHOST_DUCT_MPI
+      END IF
+
+C Apply Boundary conditions to velocity field
+      IF (USE_MPI) THEN
+        CALL APPLY_BC_VEL_MPI
+      ELSE
+        CALL APPLY_BC_VEL_ZLOWER_DUCT
+        CALL APPLY_BC_VEL_ZUPPER_DUCT
+        CALL APPLY_BC_VEL_YLOWER_DUCT
+        CALL APPLY_BC_VEL_YUPPER_DUCT
+      END IF
+
+! Save CUi
+      do k=0,NZ+1
+        do i=0,NXP-1
+          do j=0,NY+1
+            CR1(i,k,j)=CU1(i,k,j)
+            CR2(i,k,j)=CU2(i,k,j)
+            CR3(i,k,j)=CU3(i,k,j)
+          end do
+        end do
+      end do
+
+! Get the mean value of the velocities
+      ume=0.d0
+      vme=0.d0
+      wme=0.d0
+      thme=0.d0
+      IF (RANKZ.EQ.0) THEN
+        DO K=2,NZ
+          ume=ume+0.5*(dble(CU1(0,K,:))+dble(CU1(0,K-1,:)))*DZ(K)
+          vme=vme+0.5*(dble(CU2(0,K,:))+dble(CU2(0,K-1,:)))*DZ(K)
+          wme=wme+     dble(CU3(0,K,:))                    *DZ(K)
+          DO N=1,N_TH
+            thme(:,N)=thme(:,N)
+     &       +0.5*(dble(CTH(0,K,:,N))+dble(CTH(0,K-1,:,N)))*DZ(K)
+          END DO
+        END DO
+        ume=ume/LZ
+        vme=vme/LZ
+        wme=wme/LZ
+        thme=thme/LZ
+      END IF
+      CALL MPI_BCAST(ume,NY+2,MPI_DOUBLE_PRECISION,0,
+     &     MPI_COMM_Z,ierror)
+      CALL MPI_BCAST(vme,NY+2,MPI_DOUBLE_PRECISION,0,
+     &     MPI_COMM_Z,ierror)
+      CALL MPI_BCAST(wme,NY+2,MPI_DOUBLE_PRECISION,0,
+     &     MPI_COMM_Z,ierror)
+      IF (N_TH.GT.0) CALL MPI_BCAST(thme,(NY+2)*N_TH,
+     &     MPI_DOUBLE_PRECISION,0,MPI_COMM_Z,ierror)
+
+! Convert to physical space
+      call fft_x_to_physical(CU1,U1,0,NY+1)
+      call fft_x_to_physical(CU2,U2,0,NY+1)
+      call fft_x_to_physical(CU3,U3,0,NY+1)
+
+      ! WRITE(*,*) 'writing U2_CHECK2 on rank ', RANK  
+      ! FNAME='U2_CHECK2_'//char(RANK+48)//'.dat'
+      ! OPEN(UNIT=15,FILE=FNAME,STATUS="UNKNOWN",FORM="FORMATTED")
+      ! WRITE(15,151) real(U2)
+      ! CLOSE(15)
+      ! WRITE(*,*) 'writing U3_CHECK2 on rank ', RANK  
+      ! FNAME='U3_CHECK2_'//char(RANK+48)//'.dat'
+      ! OPEN(UNIT=15,FILE=FNAME,STATUS="UNKNOWN",FORM="FORMATTED")
+      ! WRITE(15,151) real(U3)
+      ! CLOSE(15)
+
+! Calculate the dissipation rate
+      call tkebudget_duct
+      IF (LES) call tkebudget_duct_les
+
+! Write to file
+      FNAME='mean.h5'
+
+      gname='time'
+      call WriteHDF5_real(FNAME,gname,TIME)
+
+      IF (RANKZ.eq.0) then
+
+      gname='gyf'
+      Diag=gyf(1:NY)      
+      call WriteStatH5(FNAME,gname,Diag)
+
+      gname='ume'
+      Diag=ume(1:NY)
+      call WriteStatH5(FNAME,gname,Diag)
+    
+      gname='vme'
+      Diag=vme(1:NY)
+      call WriteStatH5(FNAME,gname,Diag)
+
+      gname='wme'
+      Diag=wme(1:NY)
+      call WriteStatH5(FNAME,gname,Diag)
+
+      END IF
+
+! Do over the number of passive scalars
+      do n=1,N_TH
+
+! Save CTH
+      do k=0,NZ+1
+        do i=0,NXP-1
+          do j=0,NY+1
+            CRTH(i,k,j,n)=CTH(i,k,j,n)
+          end do
+        end do
+      end do
+
+! Convert to physical space
+      call mpi_barrier(MPI_COMM_WORLD,ierror)
+      CS1(:,:,:)=CTH(:,:,:,N)
+      CALL FFT_X_TO_PHYSICAL(CS1,S1,0,NY+1)
+      TH(:,:,:,N)=S1(:,:,:)
+
+! Write to movie file
+      if (MOVIE) then
+         FNAME='movie.h5'
+         if (USE_MPI) then
+           call mpi_barrier(MPI_COMM_WORLD,ierror)
+         end if
+         IF (RANKZ.EQ.RANKZMOVIE) THEN
+            do I=0,NXM
+            do J=1,NY
+               varxy(i,j)=TH(i,NzMovie,j,n)
+            end do
+            end do
+            GNAME='th' // CHAR(MOD(n,100)/10+48)
+     &                 // CHAR(MOD(n,10)+48) // '_xy'
+            call writeHDF5_xyplane(FNAME,GNAME,varxy)
+         END IF
+
+         if (USE_MPI) then
+           call mpi_barrier(MPI_COMM_WORLD,ierror)
+         end if
+         IF (RANKY.EQ.RANKYMOVIE) THEN
+            do I=0,NXM
+            do J=0,NZP-1
+               varxz(i,j)=TH(i,j+1,NyMovie,n)
+            end do
+            end do
+            GNAME='th' // CHAR(MOD(n,100)/10+48)
+     &                 // CHAR(MOD(n,10)+48) // '_xz'
+            call writeHDF5_xzplane(FNAME,GNAME,varxz)
+         END IF
+
+         if (USE_MPI) then
+           call mpi_barrier(MPI_COMM_WORLD,ierror)
+         end if
+         do I=0,NZP-1
+         do J=1,NY
+            varzy(i,j)=TH(NxMovie,i+1,j,n)
+         end do
+         end do
+         GNAME='th' // CHAR(MOD(n,100)/10+48)
+     &              // CHAR(MOD(n,10)+48) // '_zy'
+         call writeHDF5_zyplane(FNAME,GNAME,varzy)
+
+         if (USE_MPI) then
+           call mpi_barrier(MPI_COMM_WORLD,ierror)
+         end if
+         do I=0,NZP-1
+         do J=1,NY
+         varzy(i,j)=0.d0
+         do K=0,NXM
+            varzy(i,j)=varzy(i,j)+TH(k,i+1,j,n)
+         end do
+         varzy(i,j)=varzy(i,j)/dble(NX)
+         end do
+         end do
+         GNAME='thxme' // CHAR(MOD(n,100)/10+48)
+     &              // CHAR(MOD(n,10)+48) // '_zy'
+         call writeHDF5_zyplane(FNAME,GNAME,varzy)
+      END IF
+
+! While buoyancy is in physical space, calculate its pdf (call separate
+! subroutine
+      if ((BINNING).and.(N.eq.1)) then
+        call BUOYANCY_PDF_DUCT
+      end if
+
+! Convert back to Fourier space
+      S1(:,:,:)=TH(:,:,:,N)
+      CALL FFT_X_TO_FOURIER(S1,CS1,0,NY+1)
+      CTH(:,:,:,N)=CS1(:,:,:)
+
+! End do over number of passive scalars, n
+      end do
+
+! Write to file
+      FNAME='mean.h5' 
+  
+      IF (RANKZ.eq.0) THEN
+ 
+      do n=1,N_TH
+ 
+        Diag=thme(1:NY,n)
+        gname='thme'
+     &           //CHAR(MOD(N,100)/10+48)
+     &           //CHAR(MOD(N,10)+48)
+        call WriteStatH5(FNAME,gname,Diag)
+ 
+      end do
+
+      END IF
+
+! Verbosity
+      IF (RANK.EQ.0) 
+     &     write(*,*) 'VERBOSITY: ',VERBOSITY
+
+C If generating movie, save 2D slices
+      if (MOVIE) then
+         FNAME='movie.h5'
+         if (USE_MPI) then
+           call mpi_barrier(MPI_COMM_WORLD,ierror)
+         end if
+         IF (RANKZ.EQ.RANKZMOVIE) THEN
+            do I=0,NXM
+            do J=1,NY
+               varxy(i,j)=U1(i,NzMovie,j)
+            end do
+            end do
+            GNAME='u_xy'
+            call writeHDF5_xyplane(FNAME,GNAME,varxy)
+         END IF
+
+         if (USE_MPI) then
+           call mpi_barrier(MPI_COMM_WORLD,ierror)
+         end if
+         IF (RANKZ.EQ.RANKZMOVIE) THEN
+            do I=0,NXM
+            do J=1,NY
+               varxy(i,j)=0.5*(U2(i,NzMovie,j)
+     &                        +U2(i,NzMovie,j+1))
+            end do
+            end do
+            GNAME='v_xy'
+            call writeHDF5_xyplane(FNAME,GNAME,varxy)
+          END IF
+
+         if (USE_MPI) then
+           call mpi_barrier(MPI_COMM_WORLD,ierror)
+         end if
+         IF (RANKZ.EQ.RANKZMOVIE) THEN
+            do I=0,NXM
+            do J=1,NY
+               varxy(i,j)=0.5*(U3(i,NzMovie,j)
+     &                        +U3(i,NzMovie+1,j))
+            end do
+            end do
+            GNAME='w_xy'
+            call writeHDF5_xyplane(FNAME,GNAME,varxy)
+         END IF
+
+         if (USE_MPI) then
+           call mpi_barrier(MPI_COMM_WORLD,ierror)
+         end if
+         IF (RANKY.EQ.RANKYMOVIE) THEN
+            do I=0,NXM
+            do J=0,NZP-1
+               varxz(i,j)=U1(i,j+1,NyMovie)
+            end do
+            end do
+            GNAME='u_xz'
+            call writeHDF5_xzplane(FNAME,GNAME,varxz)
+         END IF
+
+         if (USE_MPI) then
+           call mpi_barrier(MPI_COMM_WORLD,ierror)
+         end if
+         IF (RANKY.EQ.RANKYMOVIE) THEN
+            do I=0,NXM
+            do J=0,NZP-1
+               varxz(i,j)=0.5*(U2(i,j+1,NyMovie)
+     &                        +U2(i,j+1,NyMovie+1))
+            end do
+            end do
+            GNAME='v_xz'
+            call writeHDF5_xzplane(FNAME,GNAME,varxz)
+         END IF 
+
+         if (USE_MPI) then
+           call mpi_barrier(MPI_COMM_WORLD,ierror)
+         end if
+         IF (RANKY.EQ.RANKYMOVIE) THEN
+            do I=0,NXM
+            do J=0,NZP-1
+               varxz(i,j)=0.5*(U3(i,j+1,NyMovie)
+     &                        +U3(i,j+1+1,NyMovie))
+            end do
+            end do
+            GNAME='w_xz'
+            call writeHDF5_xzplane(FNAME,GNAME,varxz)
+          END IF
+         
+         if (USE_MPI) then
+           call mpi_barrier(MPI_COMM_WORLD,ierror)
+         end if
+         do I=0,NZP-1
+         do J=1,NY
+            varzy(i,j)=U1(NxMovie,i+1,j)
+         end do
+         end do
+         GNAME='u_zy'
+         call writeHDF5_zyplane(FNAME,GNAME,varzy)
+
+         if (USE_MPI) then
+           call mpi_barrier(MPI_COMM_WORLD,ierror)
+         end if
+         do I=0,NZP-1
+         do J=1,NY
+            varzy(i,j)=0.5*(U2(NxMovie,i+1,j)
+     &                     +U2(NxMovie,i+1,j+1))
+         end do
+         end do
+         GNAME='v_zy'
+         call writeHDF5_zyplane(FNAME,GNAME,varzy)
+
+         if (USE_MPI) then
+           call mpi_barrier(MPI_COMM_WORLD,ierror)
+         end if
+         do I=0,NZP-1
+         do J=1,NY
+            varzy(i,j)=0.5*(U3(NxMovie,i+1,j)
+     &                     +U3(NxMovie,i+1+1,j))
+         end do
+         end do
+         GNAME='w_zy'
+         call writeHDF5_zyplane(FNAME,GNAME,varzy)
+
+    !      if (USE_MPI) then
+    !        call mpi_barrier(MPI_COMM_WORLD,ierror)
+    !      end if
+    !      IF (RANKZ.EQ.0) THEN
+    !      do I=0,NZP-1
+    !      do J=1,NY
+    !         varzy(i,j)=dble(CR1(0,:,j))
+    !         varzy(i,j)=CR1(0,)0.5*(U3(NxMovie,i+1,j)
+    !  &                     +U3(NxMovie,i+1+1,j))
+    !      end do
+    !      end do
+    !      END IF
+    !      CALL MPI_BCAST(varzy,NY+2,MPI_DOUBLE_PRECISION,0,
+    !  &     MPI_COMM_Z,ierror)
+    !      GNAME='uxme_zy'
+    !      call writeHDF5_zyplane(FNAME,GNAME,varzy)
+
+         if (USE_MPI) then
+           call mpi_barrier(MPI_COMM_WORLD,ierror)
+         end if
+         do I=0,NZP-1
+         do J=1,NY
+         varzy(i,j)=0.d0
+         do K=0,NXM
+            varzy(i,j)=varzy(i,j)+U1(k,i+1,j)
+         end do
+         varzy(i,j)=varzy(i,j)/dble(NX)
+         end do
+         end do
+         GNAME='uxme_zy'
+         call writeHDF5_zyplane(FNAME,GNAME,varzy)
+
+         if (USE_MPI) then
+           call mpi_barrier(MPI_COMM_WORLD,ierror)
+         end if
+         do I=0,NZP-1
+         do J=1,NY
+         varzy(i,j)=0.d0
+         do K=0,NXM
+            varzy(i,j)=varzy(i,j)+0.5*(U2(k,i+1,j)
+     &                                +U2(k,i+1,j+1))
+         end do
+         varzy(i,j)=varzy(i,j)/dble(NX)
+         end do
+         end do
+         GNAME='vxme_zy'
+         call writeHDF5_zyplane(FNAME,GNAME,varzy)
+
+         if (USE_MPI) then
+           call mpi_barrier(MPI_COMM_WORLD,ierror)
+         end if
+         do I=0,NZP-1
+         do J=1,NY
+         varzy(i,j)=0.d0
+         do K=0,NXM
+            varzy(i,j)=varzy(i,j)+0.5*(U3(k,i+1,j)
+     &                                +U3(k,i+1+1,j))
+         end do
+         varzy(i,j)=varzy(i,j)/dble(NX)
+         end do
+         end do
+         GNAME='wxme_zy'
+         call writeHDF5_zyplane(FNAME,GNAME,varzy)
+
+         if (USE_MPI) then
+           call mpi_barrier(MPI_COMM_WORLD,ierror)
+         end if
+        END IF ! END IF MOVIE
+
+C Convert velocity back to Fourier space
+      call fft_x_to_fourier(U1,CU1,0,NY+1)
+      call fft_x_to_fourier(U2,CU2,0,NY+1)
+      call fft_x_to_fourier(U3,CU3,0,NY+1)
+
+      IF (RANK.EQ.0) 
+     &     write(*,*) 'done save_stats duct' 
+
+      if (USE_MPI) then
+        call mpi_barrier(MPI_COMM_WORLD,ierror)
+      end if
+
+151   format(F30.20)
+
+      RETURN
+      END
+
+
+
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+      SUBROUTINE TKEBUDGET_DUCT
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+      INCLUDE 'header'
+
+      RETURN
+      END
+
+
+
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+      SUBROUTINE TKEBUDGET_DUCT_LES
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+      INCLUDE 'header'
+
+      RETURN
+      END
