@@ -91,13 +91,22 @@ C known modes for testing
        DO J=0,NY
          DO K=0,NZP-1
            DO I=0,NXM
-            !  U1(I,K,J)=COS(10.0*2.0*PI*GX(I)/LX)
-             U1(I,K,J)=COS(2.0*2.0*PI*GZ(K)/LZ)
+            !  U1(I,K,J)=COS(6.0*2.0*PI*GX(I)/LX)
+             U3(I,K,J)=0.d0
+            !  U1(I,K,J)=COS(2.0*2.0*PI*GZ(K)/LZ)
     !  &       + 3*COS(4*2.0*PI*GX(I)/LX)
     !  &       + 6*COS(7*2.0*PI*GZ(I)/LZ)
-            !  U1(I,K,J)=1.d0
-             U2(I,K,J)=0.d0
-             U3(I,K,J)=0.d0
+            !  U2(I,K,J)=-GZ(K+RANKZ*NZP)*COS(2.0*PI*GYF(J)/LY)
+            !  U2(I,K,J)=0.d0
+            !  U3(I,K,J)=SIN(2.0*PI*GZ(K+RANKZ*NZP)/LZ)
+    !           U2(I,K,J)= -LY/10.0 *COS(1.5*2.0*PI*GY(J)/LY)
+    !  &                *SIN(1.5*2.0*PI*(GZ(K+RANKZ*NZP))/LZ)
+    !           U1(I,K,J)=  LZ/10.0 *SIN(1.5*2.0*PI*GYF(J)/LY)
+    !  &                *COS(1.5*2.0*PI*(GZ(K+RANKZ*NZP)-LZ/2.)/LZ)
+              U2(I,K,J)= -LY/10.0 *COS(1.5*2.0*PI*GY(J)/LY)
+     &                *SIN(1.5*2.0*PI*(GX(I))/LX)
+              U1(I,K,J)=  LX/10.0 *SIN(1.5*2.0*PI*GYF(J)/LY)
+     &                *COS(1.5*2.0*PI*(GX(I)-LX/2.)/LX)
            END DO
          END DO
        END DO
