@@ -568,7 +568,7 @@ C Remove the divergence of the velocity field
 
 
 C Save various statistics to keep track of the initial condition
-      CALL SAVE_STATS_CHAN(.FALSE.)
+      CALL SAVE_STATS_DUCT(.FALSE.)
 
 
       RETURN
