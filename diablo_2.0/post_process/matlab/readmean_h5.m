@@ -5,7 +5,7 @@ clear
 % User settings....
 % Set the run directory
 base_dir='../../KH_test';
-base_dir='../../../../DIABLO-data/duct-chan-knownmodes-copy';
+base_dir='../../../../DIABLO-data/duct-chan-knownmodes';
 NY=65; % Here, NY should match the value in grid_def.all
 N_TH=1; % The number of scalars
 Re = 1000; NU=1/Re; % Enter the Reynolds number or viscosity from input.dat
@@ -58,44 +58,44 @@ for k=1:nk
     vme(:,k)=h5read(filename,varname);
     varname=['/wme/' timename];
     wme(:,k)=h5read(filename,varname);
-    varname=['/urms/' timename];            % RMS VELOCITIES
-    urms(:,k)=h5read(filename,varname);
-    varname=['/vrms/' timename];
-    vrms(:,k)=h5read(filename,varname);
-    varname=['/wrms/' timename];
-    wrms(:,k)=h5read(filename,varname);
-    varname=['/uv/' timename];              % REYNOLDS STRESSES
-    uv(:,k)=h5read(filename,varname);
-    varname=['/uw/' timename];
-    uw(:,k)=h5read(filename,varname);
-    varname=['/wv/' timename];
-    wv(:,k)=h5read(filename,varname);
-    varname=['/dudy/' timename];            % MEAN VELOCITY GRADIENTS
-    dudy(:,k)=h5read(filename,varname);
-    varname=['/dwdy/' timename];
-    dwdy(:,k)=h5read(filename,varname);
-    varname=['/cp/' timename];              % MEAN PRESSURE
-    cp(:,k)=h5read(filename,varname);
-    varname=['/shear/' timename];           % MEAN SQUARE SHEAR
-    shear(:,k)=h5read(filename,varname);
-    varname=['/omega_x/' timename];         % RMS VORTICITIES
-    omega_x(:,k)=h5read(filename,varname);
-    varname=['/omega_y/' timename];
-    omega_y(:,k)=h5read(filename,varname);
-    varname=['/omega_z/' timename];
-    omega_z(:,k)=h5read(filename,varname);
-    for n=1:N_TH
-        varname=['/thme' num2str(n,'%2.2d') '/' timename];  % MEAN BUOYANCY
-        thme(:,k)=h5read(filename,varname);
-        varname=['/dthdy' num2str(n,'%2.2d') '/' timename]; % MEAN BUOYANCY GRADIENTS
-        dthdy(:,k)=h5read(filename,varname);
-        varname=['/thrms' num2str(n,'%2.2d') '/' timename]; % RMS BUOYANCY
-        thrms(:,k)=h5read(filename,varname);
-        varname=['/thv' num2str(n,'%2.2d') '/' timename];
-        thv(:,k)=h5read(filename,varname);
-        varname=['/pe_diss' num2str(n,'%2.2d') '/' timename]; % POTENTIAL ENERGY DISSIPATION
-        pe_diss(:,k)=h5read(filename,varname);
-    end
+%     varname=['/urms/' timename];            % RMS VELOCITIES
+%     urms(:,k)=h5read(filename,varname);
+%     varname=['/vrms/' timename];
+%     vrms(:,k)=h5read(filename,varname);
+%     varname=['/wrms/' timename];
+%     wrms(:,k)=h5read(filename,varname);
+%     varname=['/uv/' timename];              % REYNOLDS STRESSES
+%     uv(:,k)=h5read(filename,varname);
+%     varname=['/uw/' timename];
+%     uw(:,k)=h5read(filename,varname);
+%     varname=['/wv/' timename];
+%     wv(:,k)=h5read(filename,varname);
+%     varname=['/dudy/' timename];            % MEAN VELOCITY GRADIENTS
+%     dudy(:,k)=h5read(filename,varname);
+%     varname=['/dwdy/' timename];
+%     dwdy(:,k)=h5read(filename,varname);
+%     varname=['/cp/' timename];              % MEAN PRESSURE
+%     cp(:,k)=h5read(filename,varname);
+%     varname=['/shear/' timename];           % MEAN SQUARE SHEAR
+%     shear(:,k)=h5read(filename,varname);
+%     varname=['/omega_x/' timename];         % RMS VORTICITIES
+%     omega_x(:,k)=h5read(filename,varname);
+%     varname=['/omega_y/' timename];
+%     omega_y(:,k)=h5read(filename,varname);
+%     varname=['/omega_z/' timename];
+%     omega_z(:,k)=h5read(filename,varname);
+%     for n=1:N_TH
+%         varname=['/thme' num2str(n,'%2.2d') '/' timename];  % MEAN BUOYANCY
+%         thme(:,k)=h5read(filename,varname);
+%         varname=['/dthdy' num2str(n,'%2.2d') '/' timename]; % MEAN BUOYANCY GRADIENTS
+%         dthdy(:,k)=h5read(filename,varname);
+%         varname=['/thrms' num2str(n,'%2.2d') '/' timename]; % RMS BUOYANCY
+%         thrms(:,k)=h5read(filename,varname);
+%         varname=['/thv' num2str(n,'%2.2d') '/' timename];
+%         thv(:,k)=h5read(filename,varname);
+%         varname=['/pe_diss' num2str(n,'%2.2d') '/' timename]; % POTENTIAL ENERGY DISSIPATION
+%         pe_diss(:,k)=h5read(filename,varname);
+%     end
 end
 
 % Compute secondary quantities

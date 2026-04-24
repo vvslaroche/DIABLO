@@ -1,7 +1,7 @@
 % This script shows how to load in 2D slices and make a movie
 % Run after readmean_h5.m
 LZ=4;
-NZ=17;
+NZ=16;
 z=linspace(0,LZ,NZ);
 
 filename=[base_dir '/movie.h5'];
@@ -21,13 +21,14 @@ k
   end
 
 varname=['/th01_zy/' timename];
-varname=['/u_zy/' timename];
+varname=['/v_zy/' timename];
 A=h5read(filename,varname);
 
 pcolor(z,gyf,A')
 % caxis([-1.5 1.5]);
 axis tight
-shading interp
+% shading interp
+shading flat
 xlabel('Z'), ylabel('Y')
 colormap(jet(256));
 colorbar
