@@ -277,8 +277,10 @@
 !     &          , (TH,CTH)
 !     &          , (FTH,CFTH)
 
-      COMMON /GLOBAL_VARS/ U1,U2,U3,P,R1,R2,R3,F1,F2,F3,S1,TH,FTH,RTH
-     &                 ,CTH,CFTH,CRTH
+!       COMMON /GLOBAL_VARS/ U1,U2,U3,P,R1,R2,R3,F1,F2,F3,S1,TH,FTH,RTH
+!      &                 ,CTH,CFTH,CRTH
+      COMMON /GLOBAL_VARS/ CU1,CU2,CU3,CP,CR1,CR2,CR3,CF1,CF2,CF3,CS1
+     &                 ,TH,FTH,RTH,CTH,CFTH,CRTH
 
 ! Variables for outputting statistics
       REAL*8 UBAR(0:NY+1),VBAR(0:NY+1),WBAR(0:NY+1)
