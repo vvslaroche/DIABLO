@@ -227,13 +227,25 @@
      &        FTH (0:NX+1,0:NZP+1,0:NY+1,1:N_TH), 
      &        RTH (0:NX+1,0:NZP+1,0:NY+1,1:N_TH)
 
-      REAL*8     MATL (0:NX-1,0:NY+1), MATD(0:NX-1,0:NY+1),
-     &     MATU(0:NX-1,0:NY+1), VEC(0:NX-1,0:NY+1)
-      REAL*8     MATL_t (0:NX-1,0:NY+1), MATD_t(0:NX-1,0:NY+1),
-     &     MATU_t(0:NX-1,0:NY+1)
-      COMPLEX*16 VEC_C(0:NXP,0:NY+1)
-      REAL*8     MATL_C(0:NXP,0:NY+1),MATD_C(0:NXP,0:NY+1),
-     &     MATU_C(0:NXP,0:NY+1)
+      REAL*8     MATL(0:NX-1,0:NY+1),
+     &           MATD(0:NX-1,0:NY+1),
+     &           MATU(0:NX-1,0:NY+1),
+     &           VEC (0:NX-1,0:NY+1)
+      REAL*8     MATL_t(0:NX-1,0:NY+1),
+     &           MATD_t(0:NX-1,0:NY+1),
+     &           MATU_t(0:NX-1,0:NY+1)
+      REAL*8     MATL_C(0:NXP,0:NY+1),
+     &           MATD_C(0:NXP,0:NY+1),
+     &           MATU_C(0:NXP,0:NY+1)
+      COMPLEX*16 VEC_C (0:NXP,0:NY+1)
+      REAL*8     MATL_YZ(0:NY+1,0:NZP+1),
+     &           MATD_YZ(0:NY+1,0:NZP+1),
+     &           MATU_YZ(0:NY+1,0:NZP+1),
+     &           VEC_YZ (0:NY+1,0:NZP+1)
+      REAL*8     MATL_C_YZ(0:NY+1,0:NZ+1),
+     &           MATD_C_YZ(0:NY+1,0:NZ+1),
+     &           MATU_C_YZ(0:NY+1,0:NZ+1)
+      COMPLEX*16 VEC_C_YZ (0:NY+1,0:NZ+1)
 
       COMPLEX*16 CU1(0:NXP,0:NZ+1,0:NY+1),
      &           CU2(0:NXP,0:NZ+1,0:NY+1), 
