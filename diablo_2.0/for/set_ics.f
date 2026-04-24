@@ -7,6 +7,7 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
       INTEGER I,J,K,N
       REAL*8 RNUM1,RNUM2,RNUM3
       INTEGER, DIMENSION(:), ALLOCATABLE :: seed
+      CHARACTER*55 FNAME
 
 C Initialize the random number generator
       CALL RANDOM_SEED(SIZE = K)
@@ -145,11 +146,33 @@ C Zero the ghost cells
       END DO
       END IF
 
+      WRITE(*,*) 'writing U2_CHECK1 on rank ', RANK  
+      FNAME='U2_CHECK1_'//char(RANK+48)//'.dat'
+      OPEN(UNIT=15,FILE=FNAME,STATUS="UNKNOWN",FORM="FORMATTED")
+      WRITE(15,151) real(U2)
+      CLOSE(15)
+      WRITE(*,*) 'writing U1_CHECK1 on rank ', RANK  
+      FNAME='U1_CHECK1_'//char(RANK+48)//'.dat'
+      OPEN(UNIT=15,FILE=FNAME,STATUS="UNKNOWN",FORM="FORMATTED")
+      WRITE(15,151) real(U1)
+      CLOSE(15)
+
 C Convert to Fourier space  
       CALL FFT_XZ_TO_FOURIER(U1,CU1,0,NY+1)
       CALL FFT_XZ_TO_FOURIER(U2,CU2,0,NY+1)
       CALL FFT_XZ_TO_FOURIER(U3,CU3,0,NY+1)
       CALL FFT_XZ_TO_FOURIER(P,CP,0,NY+1)
+
+      WRITE(*,*) 'writing CU2_CHECK1 on rank ', RANK  
+      FNAME='CU2_CHECK1_'//char(RANK+48)//'.dat'
+      OPEN(UNIT=15,FILE=FNAME,STATUS="UNKNOWN",FORM="FORMATTED")
+      WRITE(15,151) real(CU2)
+      CLOSE(15)
+      WRITE(*,*) 'writing CU3_CHECK1 on rank ', RANK  
+      FNAME='CU3_CHECK1_'//char(RANK+48)//'.dat'
+      OPEN(UNIT=15,FILE=FNAME,STATUS="UNKNOWN",FORM="FORMATTED")
+      WRITE(15,151) real(CU3)
+      CLOSE(15)
 
 ! Optionally, add random noise in Fourier space instead
 !      DO I=0,NXP-1
@@ -203,12 +226,57 @@ C Apply Boundary conditions to velocity field
         CALL APPLY_BC_VEL_UPPER
       END IF
 
+      WRITE(*,*) 'writing CU2_CHECK2 on rank ', RANK  
+      FNAME='CU2_CHECK2_'//char(RANK+48)//'.dat'
+      OPEN(UNIT=15,FILE=FNAME,STATUS="UNKNOWN",FORM="FORMATTED")
+      WRITE(15,151) real(CU2)
+      CLOSE(15)
+      WRITE(*,*) 'writing CU3_CHECK2 on rank ', RANK  
+      FNAME='CU3_CHECK2_'//char(RANK+48)//'.dat'
+      OPEN(UNIT=15,FILE=FNAME,STATUS="UNKNOWN",FORM="FORMATTED")
+      WRITE(15,151) real(CU3)
+      CLOSE(15)
+
+      CALL FFT_XZ_TO_PHYSICAL(CU2,U2,0,NY+1)
+      CALL FFT_XZ_TO_PHYSICAL(CU1,U1,0,NY+1)
+
+      WRITE(*,*) 'writing U2_CHECK2 on rank ', RANK  
+      FNAME='U2_CHECK2_'//char(RANK+48)//'.dat'
+      OPEN(UNIT=15,FILE=FNAME,STATUS="UNKNOWN",FORM="FORMATTED")
+      WRITE(15,151) real(U2)
+      CLOSE(15)
+      WRITE(*,*) 'writing U1_CHECK2 on rank ', RANK  
+      FNAME='U1_CHECK2_'//char(RANK+48)//'.dat'
+      OPEN(UNIT=15,FILE=FNAME,STATUS="UNKNOWN",FORM="FORMATTED")
+      WRITE(15,151) real(U1)
+      CLOSE(15)
+
+      CALL FFT_XZ_TO_FOURIER(U2,CU2,0,NY+1)
+      CALL FFT_XZ_TO_FOURIER(U1,CU1,0,NY+1)
+
 C Remove the divergence of the velocity field
       CALL REM_DIV_CHAN
 
       IF (USE_MPI) THEN
         CALL GHOST_CHAN_MPI
       END IF
+
+      CALL FFT_XZ_TO_PHYSICAL(CU2,U2,0,NY+1)
+      CALL FFT_XZ_TO_PHYSICAL(CU1,U1,0,NY+1)
+
+      WRITE(*,*) 'writing U2_CHECK3 on rank ', RANK  
+      FNAME='U2_CHECK3_'//char(RANK+48)//'.dat'
+      OPEN(UNIT=15,FILE=FNAME,STATUS="UNKNOWN",FORM="FORMATTED")
+      WRITE(15,151) real(U2)
+      CLOSE(15)
+      WRITE(*,*) 'writing U1_CHECK3 on rank ', RANK  
+      FNAME='U1_CHECK3_'//char(RANK+48)//'.dat'
+      OPEN(UNIT=15,FILE=FNAME,STATUS="UNKNOWN",FORM="FORMATTED")
+      WRITE(15,151) real(U1)
+      CLOSE(15)
+
+      CALL FFT_XZ_TO_FOURIER(U2,CU2,0,NY+1)
+      CALL FFT_XZ_TO_FOURIER(U1,CU1,0,NY+1)
 
 C Get the pressure from the poisson equation
 !      CALL POISSON_P_CHAN
@@ -220,6 +288,10 @@ C Get the pressure from the poisson equation
 C Save various statistics to keep track of the initial condition
       CALL SAVE_STATS_CHAN(.FALSE.)
 
+      CALL MPI_BARRIER(MPI_COMM_WORLD,ierror)
+      STOP
+
+151   format(F30.20)
       RETURN
       END
 
@@ -284,7 +356,7 @@ C particular problem of interest
        END DO
        ELSE IF (IC_TYPE.eq.9) then
 ! known modes for testing
-        DO K=1,NZP
+        DO K=0,NZP-1
           DO I=0,NXM
             DO J=1,NY
               TH(I,K,J,N)=0.d0
@@ -453,6 +525,7 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
       INTEGER I,J,K,N
       REAL*8 RNUM1,RNUM2,RNUM3
       INTEGER, DIMENSION(:), ALLOCATABLE :: seed
+      CHARACTER*55 FNAME
 
 
 C Initialize the random number generator
@@ -494,12 +567,23 @@ C Tanh shear layer
         END DO
       ELSE IF (IC_TYPE.eq.9) THEN
 C known modes for testing
-        DO J=0,NY
+        DO J=0,NY+1
           DO K=0,NZP+1
             DO I=0,NXM
-              U1(I,K,J)=COS(10.0*2.0*PI*GX(I)/LX)
-              U2(I,K,J)=0.d0
-              U3(I,K,J)=0.d0
+              ! U1(I,K,J)=COS(10.0*2.0*PI*GX(I)/LX)
+              U1(I,K,J)=0.d0
+              ! U3(I,K,J)=0.d0
+              ! U2(I,K,J)=SIN(5.0*2.0*PI*GY(J)/LY)
+              ! U3(I,K,J)=GZP(K)*5.0*COS(5.0*2.0*PI*GYF(J)/LY)
+              U2(I,K,J)= -LY/10.0 *COS(1.5*2.0*PI*GY(J)/LY)
+     &                *SIN(1.5*2.0*PI*GZFP(K)/LZ)
+    !  &                *SIN(1.5*2.0*PI*(GZFP(K)-LZ/2.)/LZ)
+              U3(I,K,J)=  LZ/10.0 *SIN(1.5*2.0*PI*GYF(J)/LY)
+     &                *COS(1.5*2.0*PI*GZP(K)/LZ)
+    !  &                *COS(1.5*2.0*PI*(GZP(K)-LZ/2.)/LZ)
+    !  &                *COS(2.0*PI*GZP(K)/LZ)
+              ! U2(I,K,J)=GYF(J)/LY +1.0
+              ! U3(I,K,J)=GZFP(K)/LZ
             END DO
           END DO
         END DO
@@ -549,12 +633,38 @@ C Zero the ghost cells
           END DO
         END DO
       END IF
+      ! output code if needed
+      WRITE(*,*) 'writing U2_CHECK1 on rank ', RANK  
+      FNAME='U2_CHECK1_'//char(RANK+48)//'.dat'
+      OPEN(UNIT=15,FILE=FNAME,STATUS="UNKNOWN",FORM="FORMATTED")
+      WRITE(15,151) real(U2)
+      CLOSE(15)
+      WRITE(*,*) 'writing U3_CHECK1 on rank ', RANK  
+      FNAME='U3_CHECK1_'//char(RANK+48)//'.dat'
+      OPEN(UNIT=15,FILE=FNAME,STATUS="UNKNOWN",FORM="FORMATTED")
+      WRITE(15,151) real(U3)
+      CLOSE(15)
 
 C Convert to Fourier space  
       CALL FFT_X_TO_FOURIER(U1,CU1,0,NY+1)
       CALL FFT_X_TO_FOURIER(U2,CU2,0,NY+1)
       CALL FFT_X_TO_FOURIER(U3,CU3,0,NY+1)
       CALL FFT_X_TO_FOURIER(P,CP,0,NY+1)
+
+      WRITE(*,*) 'writing CU2_CHECK1 on rank ', RANK  
+      FNAME='CU2_CHECK1_'//char(RANK+48)//'.dat'
+      OPEN(UNIT=15,FILE=FNAME,STATUS="UNKNOWN",FORM="FORMATTED")
+      WRITE(15,151) real(CU2)
+      CLOSE(15)
+
+      WRITE(*,*) 'writing CU3_CHECK1 on rank ', RANK  
+      FNAME='CU3_CHECK1_'//char(RANK+48)//'.dat'
+      OPEN(UNIT=15,FILE=FNAME,STATUS="UNKNOWN",FORM="FORMATTED")
+      WRITE(15,151) real(CU3)
+      CLOSE(15)
+
+
+
 
 
       IF (USE_MPI) THEN
@@ -564,12 +674,57 @@ C Apply Boundary conditions to velocity field
       IF (USE_MPI) THEN
         CALL APPLY_BC_VEL_MPI
       ELSE
-        ! CALL APPLY_BC_VEL_LOWER  - needs to be fixed
-        ! CALL APPLY_BC_VEL_UPPER  - needs to be fixed
+        CALL APPLY_BC_VEL_ZLOWER_DUCT
+        CALL APPLY_BC_VEL_ZUPPER_DUCT
+        CALL APPLY_BC_VEL_YLOWER_DUCT
+        CALL APPLY_BC_VEL_YUPPER_DUCT
       END IF
+
+      WRITE(*,*) 'writing CU2_CHECK2 on rank ', RANK  
+      FNAME='CU2_CHECK2_'//char(RANK+48)//'.dat'
+      OPEN(UNIT=15,FILE=FNAME,STATUS="UNKNOWN",FORM="FORMATTED")
+      WRITE(15,151) real(CU2)
+      CLOSE(15)
+      WRITE(*,*) 'writing CU3_CHECK2 on rank ', RANK  
+      FNAME='CU3_CHECK2_'//char(RANK+48)//'.dat'
+      OPEN(UNIT=15,FILE=FNAME,STATUS="UNKNOWN",FORM="FORMATTED")
+      WRITE(15,151) real(CU3)
+      CLOSE(15)
+
 
 C Remove the divergence of the velocity field
       CALL REM_DIV_DUCT
+
+      WRITE(*,*) 'writing CU2_CHECK3 on rank ', RANK  
+      FNAME='CU2_CHECK3_'//char(RANK+48)//'.dat'
+      OPEN(UNIT=15,FILE=FNAME,STATUS="UNKNOWN",FORM="FORMATTED")
+      WRITE(15,151) real(CU2)
+      CLOSE(15)
+      WRITE(*,*) 'writing CU3_CHECK3 on rank ', RANK  
+      FNAME='CU3_CHECK3_'//char(RANK+48)//'.dat'
+      OPEN(UNIT=15,FILE=FNAME,STATUS="UNKNOWN",FORM="FORMATTED")
+      WRITE(15,151) real(CU3)
+      CLOSE(15)
+
+
+      ! CALL SAVE_FLOW(.FALSE.)
+      ! CALL SAVE_STATS_DUCT(.FALSE.)
+      
+
+      ! WRITE(*,*) 'writing CU2_CHECK5 on rank ', RANK  
+      ! FNAME='CU2_CHECK5_'//char(RANK+48)//'.dat'
+      ! OPEN(UNIT=15,FILE=FNAME,STATUS="UNKNOWN",FORM="FORMATTED")
+      ! WRITE(15,151) real(CU2)
+      ! CLOSE(15)
+      ! WRITE(*,*) 'writing CU3_CHECK5 on rank ', RANK  
+      ! FNAME='CU3_CHECK5_'//char(RANK+48)//'.dat'
+      ! OPEN(UNIT=15,FILE=FNAME,STATUS="UNKNOWN",FORM="FORMATTED")
+      ! WRITE(15,151) real(CU3)
+      ! CLOSE(15)
+
+      CALL MPI_BARRIER(MPI_COMM_WORLD,ierror)
+      STOP
+
 
       IF (USE_MPI) THEN
         CALL GHOST_DUCT_MPI
@@ -580,6 +735,7 @@ C Save various statistics to keep track of the initial condition
       CALL SAVE_STATS_DUCT(.FALSE.)
 
 
+151   format(F40.20)
       RETURN
       END
 
