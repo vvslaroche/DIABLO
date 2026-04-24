@@ -1422,12 +1422,12 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
       INTEGER XYBOX
 
       ! Define new data type
-      call mpi_type_vector(NY,NX,(NX+2)*(NY+2),MPI_DOUBLE_PRECISION,
+      call mpi_type_vector(NY,NX,(NX+2)*(NZP+2),MPI_DOUBLE_PRECISION,
      &     XYBOX,ierror)
       call mpi_type_commit(XYBOX,ierror)
 
       if (RANKZ.ne.NPROCZ-1) then
-         call mpi_recv(var(0,NZP+1,1),1,XYBOX,RANKZ+1,101+RANKZ,
+         call mpi_recv(var(0,NZP+1,1),1,XYBOX,RANKZ+1,201+RANKZ,
      &     MPI_COMM_Z,status,ierror)
       else
          do x=0,NX-1
@@ -1446,7 +1446,7 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
       end do
 
       if (RANKZ.ne.0) call mpi_send(var(0,2,1),1,
-     &     XYBOX,RANKZ-1,100+RANKZ,
+     &     XYBOX,RANKZ-1,200+RANKZ,
      &     MPI_COMM_Z,ierror)
 
       ! Impose the values at the boundary as prescribed in the
