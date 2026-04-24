@@ -1112,7 +1112,7 @@ C H_BAR has been absorbed into PHI, so we are solving for H_BAR*PHI
 
 C First, Initialize the matrix components
       DO J=0,NY+1
-        DO I=0,NXP-1
+        DO I=0,NXP
           MATL_C(I,J)=0.
           MATD_C(I,J)=1.
           MATU_C(I,J)=0.
