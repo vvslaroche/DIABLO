@@ -135,10 +135,12 @@
       INTEGER READ_TH_INDEX(1:N_TH)
       INTEGER JSTART_TH(1:N_TH),JEND_TH(1:N_TH)
       INTEGER KSTART_TH(1:N_TH),KEND_TH(1:N_TH)
+      INTEGER KSTARTC_TH(1:N_TH),KENDC_TH(1:N_TH)
 
       COMMON /SCALAR_VARS/
      &          RI,PR,JSTART_TH, JEND_TH, NUM_READ_TH,
      &          KSTART_TH, KEND_TH,
+     &          KSTARTC_TH, KENDC_TH,
      &          READ_TH_INDEX,
      &          CREATE_NEW_TH, BACKGROUND_GRAD 
 
@@ -207,12 +209,13 @@
      &        DZP(0:NZP+1),
      &        GZFP(0:NZP+1),
      &        DZFP(0:NZP+1)
-      INTEGER JSTART,JEND, KSTART,KEND
+      INTEGER JSTART,JEND, KSTART,KEND,KSTARTC,KENDC
 
       COMMON /GRID_PARAMS/ GX,  GY,  GZ,  DX,  DY,  DZ,
      &                     GXF, GYF, GZF, DXF, DYF, DZF,
      &                     GZP, DZP, GZFP, DZFP,
-     &                     JSTART, JEND, KSTART, KEND
+     &                     JSTART, JEND,
+     &                     KSTART, KEND, KSTARTC, KENDC
 
 !----*|--.---------.---------.---------.---------.---------.---------.-|-------|
 ! Global variables
