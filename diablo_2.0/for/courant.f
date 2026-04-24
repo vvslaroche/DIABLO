@@ -10,6 +10,7 @@
       real*8 Nmax
       integer i,j,k,n
       integer imin,jmin,kmin
+      INTEGER KLIM1,KLIM2
 
 ! Set the initial dt to some arbitrary large number
       dt=999.d0
@@ -31,9 +32,16 @@
       end if
       end do
 
+      IF (NUM_PER_DIR.EQ.1) THEN
+         KLIM1=1
+         KLIM2=NZP
+      ELSE IF (NUM_PER_DIR.EQ.2) THEN
+         KLIM1=0
+         KLIM2=NZP-1
+      END IF  
 ! Use the model velocity to calculate the CFL number
       do j=1,NY
-        do k=0,NZP-1
+        do k=KLIM1,KLIM2
           do i=0,NXM
             dt_x=cfl*dx(i)/abs(U1(i,k,j))
             dt_y=cfl*dy(j)/abs(U2(i,k,j))
