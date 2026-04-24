@@ -553,7 +553,7 @@ C Convert to Fourier space
       END IF
 C Apply Boundary conditions to velocity field
       IF (USE_MPI) THEN
-        ! CALL APPLY_BC_VEL_MPI  - needs to be fixed
+        CALL APPLY_BC_VEL_MPI
       ELSE
         ! CALL APPLY_BC_VEL_LOWER  - needs to be fixed
         ! CALL APPLY_BC_VEL_UPPER  - needs to be fixed
