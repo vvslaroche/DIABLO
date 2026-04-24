@@ -182,19 +182,189 @@
       END
 
 
-
+ 
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
       SUBROUTINE GHOST_DUCT_MPI
-! This subroutine is part of the MPI package for the channel flow
-! Diablo package.
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+! This subroutine is part of the MPI package for the duct flow
 ! Here, we define a set of ghost cells on each process
 ! the ghost cells contain information from the neighboring nodes
 ! and allow us to compute finite differences over the local gridpoints.
 ! We need to update the contents of the ghost cells at the start of
 ! each Runge-Kutta substep
+! Because of how the data is stored in complex space, only need to 
+! communicate in Y, not Z
 
       include 'header'
 
-      integer i,j,k,N
+      integer I,J,K,N
+
+! Define the arrays that will be used for data packing.  This makes the
+! communication between processes more efficient by only requiring one
+! send and recieve.
+! The communication will be done in Fourier space, so these arrays should
+! be complex arrays to match the velocity
+! The size of the buffer array is (0:NXP-1,0:NZ+1,# of variables)
+      COMPLEX*16 OCPACK(0:NXP-1,0:NZ+1,4+N_TH)
+      COMPLEX*16 ICPACK(0:NXP-1,0:NZ+1,4+N_TH)
+
+! If we are using more than one processor, then we need to pass data
+      IF (NPROCY.gt.1) THEN
+
+! First, Pass data up the chain to higher ranked processes
+
+      IF (RANKY.eq.0) THEN
+! If we are the lowest ranked process, then we don't need to recieve
+! data at the lower ghost cells, these will be filled with boundary
+! condition information
+        DO K=0,NZ+1
+          DO I=0,NXP-1
+            OCPACK(I,K,1)=CU1(I,K,NY)
+            OCPACK(I,K,2)=CU2(I,K,NY)
+            OCPACK(I,K,3)=CU3(I,K,NY)
+            OCPACK(I,K,4)=CP(I,K,NY)
+            DO N=1,N_TH
+              OCPACK(I,K,4+N)=CTH(I,K,NY,N)
+            END DO
+          END DO
+        END DO
+! Now, we have packed the data into a compact array, pass the data up
+        CALL MPI_SEND(OCPACK,(4+N_TH)*(NXP)*(NZ+2)
+     &               ,MPI_DOUBLE_COMPLEX
+     &               ,RANKY+1,1,MPI_COMM_Y,IERROR)
+
+! End if RANK=0
+      ELSE IF (RANKY.lt.NPROCY-1) THEN
+! Here, we are one of the middle processes and we need to pass data
+! up and recieve data from below
+        DO K=0,NZ+1
+          DO I=0,NXP-1
+            OCPACK(I,K,1)=CU1(I,K,NY)
+            OCPACK(I,K,2)=CU2(I,K,NY)
+            OCPACK(I,K,3)=CU3(I,K,NY)
+            OCPACK(I,K,4)=CP(I,K,NY)
+            DO N=1,N_TH
+              OCPACK(I,K,4+N)=CTH(I,K,NY,N)
+            END DO
+          END DO
+        END DO
+! Use MPI_SENDRECV since we need to recieve and send data
+        CALL MPI_SEND(OCPACK,(4+N_TH)*(NXP)*(NZ+2)
+     &               ,MPI_DOUBLE_COMPLEX
+     &               ,RANKY+1,1,MPI_COMM_Y,IERROR)
+
+        CALL MPI_RECV(ICPACK,(4+N_TH)*(NXP)*(NZ+2)
+     &               ,MPI_DOUBLE_COMPLEX
+     &               ,RANKY-1,1,MPI_COMM_Y,STATUS,IERROR)
+! Now, unpack the data that we have recieved
+        DO K=0,NZ+1
+          DO I=0,NXP-1
+            CU1(I,K,1)=ICPACK(I,K,1)
+            CU2(I,K,1)=ICPACK(I,K,2)
+            CU3(I,K,1)=ICPACK(I,K,3)
+            CP(I,K,1)=ICPACK(I,K,4)
+            DO N=1,N_TH
+              CTH(I,K,1,N)=ICPACK(I,K,4+N)
+            END DO
+          END DO
+        END DO
+
+      ELSE
+! Otherwise, we must be the uppermost process with RANK=NPROCS-1
+! Here, we need to recieve data from below, but don't need to send data up
+        CALL MPI_RECV(ICPACK,(4+N_TH)*(NXP)*(NZ+2)
+     &               ,MPI_DOUBLE_COMPLEX
+     &               ,RANKY-1,1,MPI_COMM_Y,STATUS,IERROR)
+! Unpack the data that we have recieved
+        DO K=0,NZ+1
+          DO I=0,NXP-1
+            CU1(I,K,1)=ICPACK(I,K,1)
+            CU2(I,K,1)=ICPACK(I,K,2)
+            CU3(I,K,1)=ICPACK(I,K,3)
+            CP(I,K,1)=ICPACK(I,K,4)
+            DO N=1,N_TH
+              CTH(I,K,1,N)=ICPACK(I,K,4+N)
+            END DO
+          END DO
+        END DO
+      END IF
+
+! AT this point we have passed data up the chain
+      IF (RANKY.eq.NPROCY-1) THEN
+! If we are the higest ranked process, then we don't need to recieve
+! data at the upper ghost cells, these will be filled with boundary
+! condition information
+        DO K=0,NZ+1
+          DO I=0,NXP-1
+            OCPACK(I,K,1)=CU1(I,K,2)
+            OCPACK(I,K,2)=CU2(I,K,2)
+            OCPACK(I,K,3)=CU3(I,K,2)
+            OCPACK(I,K,4)=CP(I,K,2)
+            DO N=1,N_TH
+              OCPACK(I,K,4+N)=CTH(I,K,2,N)
+            END DO
+          END DO
+        END DO
+! Now, we have packed the data into a compact array, pass the data up
+        CALL MPI_SEND(OCPACK,(4+N_TH)*(NXP)*(NZ+2)
+     &               ,MPI_DOUBLE_COMPLEX
+     &               ,RANKY-1,3,MPI_COMM_Y,IERROR)
+      ELSE IF (RANKY.GT.0) THEN
+! Here, we are one of the middle processes and we need to pass data
+! down and recieve data from above us
+        DO K=0,NZ+1
+          DO I=0,NXP-1
+            OCPACK(I,K,1)=CU1(I,K,2)
+            OCPACK(I,K,2)=CU2(I,K,2)
+            OCPACK(I,K,3)=CU3(I,K,2)
+            OCPACK(I,K,4)=CP(I,K,2)
+            DO N=1,N_TH
+              OCPACK(I,K,4+N)=CTH(I,K,2,N)
+            END DO
+          END DO
+        END DO
+
+        CALL MPI_SEND(OCPACK,(4+N_TH)*(NXP)*(NZ+2)
+     &               ,MPI_DOUBLE_COMPLEX
+     &               ,RANKY-1,3,MPI_COMM_Y,IERROR)
+
+        CALL MPI_RECV(ICPACK,(4+N_TH)*(NXP)*(NZ+2)
+     &               ,MPI_DOUBLE_COMPLEX
+     &               ,RANKY+1,3,MPI_COMM_Y,STATUS,IERROR)
+! Now, unpack the data that we have recieved
+        DO K=0,NZ+1
+          DO I=0,NXP-1
+            CU1(I,K,NY+1)=ICPACK(I,K,1)
+            CU2(I,K,NY+1)=ICPACK(I,K,2)
+            CU3(I,K,NY+1)=ICPACK(I,K,3)
+            CP(I,K,NY+1)=ICPACK(I,K,4)
+            DO N=1,N_TH
+              CTH(I,K,NY+1,N)=ICPACK(I,K,4+N)
+            END DO
+          END DO
+        END DO
+      ELSE
+! Here, we must be the lowest process (RANK=0) and we need to recieve
+! data from above
+        CALL MPI_RECV(ICPACK,(4+N_TH)*(NXP)*(NZ+2)
+     &               ,MPI_DOUBLE_COMPLEX
+     &               ,RANKY+1,3,MPI_COMM_Y,STATUS,IERROR)
+! Unpack the data that we have recieved
+        DO K=0,NZ+1
+          DO I=0,NXP-1
+            CU1(I,K,NY+1)=ICPACK(I,K,1)
+            CU2(I,K,NY+1)=ICPACK(I,K,2)
+            CU3(I,K,NY+1)=ICPACK(I,K,3)
+            CP(I,K,NY+1)=ICPACK(I,K,4)
+            DO N=1,N_TH
+              CTH(I,K,NY+1,N)=ICPACK(I,K,4+N)
+            END DO
+          END DO
+        END DO
+      END IF
+
+      END IF
+
 
       RETURN
       END
@@ -885,6 +1055,582 @@ C Else, if we are the highest process, then compute the solution at j=INY
       RETURN
       END
 
+
+
+
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+      SUBROUTINE TDMA_F_REAL_DUCT_Y_MPI(A,B,C,G,INY,INZ)
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+C Tri-Diagonal Matrix Algorithm FORWARD sweep in Y-DIRECTION. Input data is in
+C physical (REAL) space and formatted for DUCT geometry in YZ.
+C Requires communication in Y.
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+      INCLUDE 'header'
+
+      INTEGER I,J,K,INY,INZ
+      REAL*8 A(0:INY+1,0:INZ+1), B(0:INY+1,0:INZ+1), C(0:INY+1,0:INZ+1)
+     &     , G(0:INY+1,0:INZ+1)
+      REAL*8 OCPACK(1:INZ,4),ICPACK(1:INZ,4)
+
+      IF (RANKY.NE.0) THEN
+C If we aren't the lowest process, then wait for data
+        CALL MPI_RECV(OCPACK,4*INZ,MPI_DOUBLE_PRECISION,RANKY-1,10
+     &               ,MPI_COMM_Y,status,ierror)
+C Unpack the data
+        DO K=1,INZ
+          A(1,K)=OCPACK(K,1)
+          B(1,K)=OCPACK(K,2)
+          C(1,K)=OCPACK(K,3)
+          G(1,K)=OCPACK(K,4)
+        END DO
+! If we aren't the lowest process, start at J=2
+        DO J=2,INY
+          DO K=1,INZ
+            A(J,K)=-A(J,K)/B(J-1,K)
+            B(J,K)=B(J,K)+A(J,K)*C(J-1,K)
+            G(J,K)=G(J,K)+A(J,K)*G(J-1,K)
+          END DO
+        END DO
+      ELSE
+! Here, we are the lowest process, start solving at J=1
+        DO J=1,INY
+          DO K=1,INZ
+            A(J,K)=-A(J,K)/B(J-1,K)
+            B(J,K)=B(J,K)+A(J,K)*C(J-1,K)
+            G(J,K)=G(J,K)+A(J,K)*G(J-1,K)
+          END DO
+        END DO
+      END IF
+
+      IF (RANKY.NE.NPROCY-1) THEN
+        DO K=1,INZ
+          ICPACK(K,1)=A(INY,K)
+          ICPACK(K,2)=B(INY,K)
+          ICPACK(K,3)=C(INY,K)
+          ICPACK(K,4)=G(INY,K)
+        END DO
+        CALL MPI_SEND(ICPACK,4*INZ,MPI_DOUBLE_PRECISION,RANKY+1,10
+     &               ,MPI_COMM_Y,ierror)
+      ELSE
+! Here, we are at the upper process, so solve one more row containing
+! the boundary conditions
+        J=INY+1
+        DO K=1,INZ
+          A(J,K)=-A(J,K)/B(J-1,K)
+          B(J,K)=B(J,K)+A(J,K)*C(J-1,K)
+          G(J,K)=G(J,K)+A(J,K)*G(J-1,K)
+        END DO
+      END IF
+
+      RETURN
+      END
+
+
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+      SUBROUTINE TDMA_B_REAL_DUCT_Y_MPI(A,B,C,G,INY,INZ)
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+C Tri-Diagonal Matrix Algorithm BACKWARD sweep in Y-DIRECTION. Input data is in
+C physical (REAL) space and formatted for DUCT geometry in YZ.
+C Requires communication in Y.
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+      INCLUDE 'header'
+
+      INTEGER I,J,K,INY,INZ
+      REAL*8 A(0:INY+1,0:INZ+1), B(0:INY+1,0:INZ+1), C(0:INY+1,0:INZ+1)
+     &     , G(0:INY+1,0:INZ+1)
+      REAL*8 OCPACK(1),ICPACK(1)
+
+      DO K=1,INZ
+        IF (RANKY.NE.NPROCY-1) THEN
+! If we aren’t the highest process, then wait for data
+          CALL MPI_RECV(OCPACK,1,MPI_DOUBLE_PRECISION,RANKY+1,11
+     &                 ,MPI_COMM_Y,status,ierror)
+          G(INY+1,K)=OCPACK(1)
+        ELSE
+! Else, if we are the highest process, compute the solution at J=INY
+          G(INY+1,K)=G(INY+1,K)/B(INY+1,K)
+        END IF
+
+! All processes solve from INY..1
+        DO J=INY,0,-1
+          IF (B(J,K).NE.0.d0) THEN
+            G(J,K)=(G(J,K)-C(J,K)*G(J+1,K))/B(J,K)
+          ELSE
+            G(J,K)=0.d0
+          END IF
+        END DO
+
+        IF (RANKY.NE.0) THEN
+          ICPACK(1)=G(2,K)
+          CALL MPI_SEND(ICPACK,1,MPI_DOUBLE_PRECISION,RANKY-1,11
+     &                 ,MPI_COMM_Y,ierror)
+        END IF
+      END DO
+
+      RETURN
+      END
+
+
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+      SUBROUTINE TDMA_F_COMP_DUCT_Y_MPI(A,B,C,G,INY,INZ)
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+C Tri-Diagonal Matrix Algorithm FORWARD sweep in Y-DIRECTION. Input data is in
+C Fourier (COMPLEX) space and formatted for DUCT geometry in YZ.
+C Requires communication in Y.
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+      INCLUDE 'header'
+
+      INTEGER I,J,K,INY,INZ
+      REAL*8 A(0:INY+1,0:INZ+1), B(0:INY+1,0:INZ+1), C(0:INY+1,0:INZ+1)
+      COMPLEX*16 G(0:INY+1,0:INZ+1)
+      COMPLEX*16 OCPACK(4),ICPACK(4)
+
+      DO K=1,INZ
+C If we aren't the lowest process, then wait for data from below
+        IF (RANKY.NE.0) THEN
+          CALL MPI_RECV(OCPACK,4,MPI_DOUBLE_COMPLEX,RANKY-1,12
+     &               ,MPI_COMM_Y,status,ierror)
+C Unpack the data
+          A(1,K)=REAL(OCPACK(1))
+          B(1,K)=REAL(OCPACK(2))
+          C(1,K)=REAL(OCPACK(3))
+          G(1,K)=OCPACK(4)
+        END IF
+
+C Do interior points on each process
+        DO J=2,INY
+          IF (B(J-1,K).NE.0.d0) THEN
+            A(J,K)=-A(J,K)/B(J-1,K)
+          ELSE
+            A(J,K)=0.d0
+          END IF
+          B(J,K)=B(J,K)+A(J,K)*C(J-1,K)
+          G(J,K)=G(J,K)+A(J,K)*G(J-1,K)
+        END DO
+
+C If we aren't the highest process, then send data upwards
+        IF (RANKY.NE.NPROCY-1) THEN
+          ICPACK(1)=A(INY,K)
+          ICPACK(2)=B(INY,K)
+          ICPACK(3)=C(INY,K)
+          ICPACK(4)=G(INY,K)
+          CALL MPI_SEND(ICPACK,4,MPI_DOUBLE_COMPLEX,RANKY+1,12
+     &               ,MPI_COMM_Y,ierror)
+        END IF
+      END DO
+
+      RETURN
+      END
+
+
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+      SUBROUTINE TDMA_B_COMP_DUCT_Y_MPI(A,B,C,G,INY,INZ)
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+C Tri-Diagonal Matrix Algorithm BACKWARD sweep in Y-DIRECTION. Input data is in
+C Fourier (COMPLEX) space and formatted for duct geometry in YZ.
+C Requires communication in Y.
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+      INCLUDE 'header'
+
+      INTEGER I,J,K,INY,INZ
+      REAL*8 A(0:INY+1,0:INZ+1), B(0:INY+1,0:INZ+1), C(0:INY+1,0:INZ+1)
+      COMPLEX*16 G(0:INY+1,0:INZ+1)
+
+      DO K=1,INZ
+C If we aren't the highest process, then wait for data from above
+        IF (RANKY.NE.NPROCY-1) THEN
+          CALL MPI_RECV(G(INY+1,K),1,MPI_DOUBLE_COMPLEX,RANKY+1,13
+     &               ,MPI_COMM_Y,status,ierror)
+          IF (B(INY,K).NE.0.d0) THEN
+            G(INY,K)=(G(INY,K)-C(INY,K)*G(INY+1,K))/B(INY,K)
+          END IF
+        ELSE
+C If we are the highest process, then compute the solution at J=INY
+          IF (B(INY,K).NE.0.d0) THEN
+            G(INY,K)=G(INY,K)/B(INY,K)
+          ELSE
+            G(INY,K)=0.d0
+          END IF
+        END IF
+
+C Do interior points on each process
+        DO J=INY-1,1,-1
+          IF (B(J,K).NE.0.d0) THEN
+            G(J,K)=(G(J,K)-C(J,K)*G(J+1,K))/B(J,K)
+          ELSE
+            G(J,K)=0.d0
+          END IF
+        END DO
+
+C If we aren't the lowest process, then send data down
+        IF (RANKY.NE.0) THEN
+          CALL MPI_SEND(G(2,K),1,MPI_DOUBLE_COMPLEX,RANKY-1,13
+     &               ,MPI_COMM_Y,ierror)
+        END IF
+      END DO
+
+      RETURN
+      END
+
+
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+      SUBROUTINE TDMA_F_REAL_DUCT_Z_MPI(A,B,C,G,INY,INZ)
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+C Tri-Diagonal Matrix Algorithm FORWARD sweep in Z-DIRECTION. Input data is in
+C physical (REAL) space and formatted for DUCT geometry in YZ.
+C Requires communication in Z.
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+      INCLUDE 'header'
+
+      INTEGER I,J,K,INY,INZ
+      REAL*8 A(0:INY+1,0:INZ+1), B(0:INY+1,0:INZ+1), C(0:INY+1,0:INZ+1)
+     &     , G(0:INY+1,0:INZ+1)
+      REAL*8 OCPACK(1:INY,4),ICPACK(1:INY,4)
+
+      IF (RANKZ.NE.0) THEN
+C If we aren't the lowest process, then wait for data
+        CALL MPI_RECV(OCPACK,4*INY,MPI_DOUBLE_PRECISION,RANKY-1,14
+     &               ,MPI_COMM_Y,status,ierror)
+C Unpack the data
+        DO J=1,INY
+          A(J,1)=OCPACK(J,1)
+          B(J,1)=OCPACK(J,2)
+          C(J,1)=OCPACK(J,3)
+          G(J,1)=OCPACK(J,4)
+        END DO
+! If we aren't the lowest process, start at K=2
+        DO K=2,INZ
+          DO J=1,INY
+            A(J,K)=-A(J,K)/B(J,K-1)
+            B(J,K)=B(J,K)+A(J,K)*C(J,K-1)
+            G(J,K)=G(J,K)+A(J,K)*G(J,K-1)
+          END DO
+        END DO
+      ELSE
+! Here, we are the lowest process, start solving at K=1
+        DO K=1,INZ
+          DO J=1,INY
+            A(J,K)=-A(J,K)/B(J,K-1)
+            B(J,K)=B(J,K)+A(J,K)*C(J,K-1)
+            G(J,K)=G(J,K)+A(J,K)*G(J,K-1)
+          END DO
+        END DO
+      END IF
+
+      IF (RANKZ.NE.NPROCZ-1) THEN
+        DO J=1,INY
+          ICPACK(J,1)=A(J,INZ)
+          ICPACK(J,2)=B(J,INZ)
+          ICPACK(J,3)=C(J,INZ)
+          ICPACK(J,4)=G(J,INZ)
+        END DO
+        CALL MPI_SEND(ICPACK,4*INY,MPI_DOUBLE_PRECISION,RANKY+1,14
+     &               ,MPI_COMM_Y,ierror)
+      ELSE
+! Here, we are at the upper process, so solve one more row containing
+! the boundary conditions
+        K=INZ+1
+        DO J=1,INY
+          A(J,K)=-A(J,K)/B(J,K-1)
+          B(J,K)=B(J,K)+A(J,K)*C(J,K-1)
+          G(J,K)=G(J,K)+A(J,K)*G(J,K-1)
+        END DO
+      END IF
+
+      RETURN
+      END
+
+
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+      SUBROUTINE TDMA_B_REAL_DUCT_Z_MPI(A,B,C,G,INY,INZ)
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+C Tri-Diagonal Matrix Algorithm BACKWARD sweep in Z-DIRECTION. Input data is in
+C physical (REAL) space and formatted for DUCT geometry in YZ.
+C Requires communication in Z.
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+      INCLUDE 'header'
+
+      INTEGER I,J,K,INY,INZ
+      REAL*8 A(0:INY+1,0:INZ+1), B(0:INY+1,0:INZ+1), C(0:INY+1,0:INZ+1)
+     &     , G(0:INY+1,0:INZ+1)
+      REAL*8 OCPACK(1),ICPACK(1)
+
+      DO J=1,INY
+        IF (RANKZ.NE.NPROCZ-1) THEN
+! If we aren’t the highest process, then wait for data
+          CALL MPI_RECV(OCPACK,1,MPI_DOUBLE_PRECISION,RANKY+1,15
+     &                 ,MPI_COMM_Y,status,ierror)
+          G(J,INZ+1)=OCPACK(1)
+        ELSE
+! Else, if we are the highest process, compute the solution at K=INZ
+          G(J,INZ+1)=G(J,INZ+1)/B(J,INZ+1)
+        END IF
+
+! All processes solve from INZ..1
+        DO K=INZ,0,-1
+          IF (B(J,K).NE.0.d0) THEN
+            G(J,K)=(G(J,K)-C(J,K)*G(J,K+1))/B(J,K)
+          ELSE
+            G(J,K)=0.d0
+          END IF
+        END DO
+
+        IF (RANKZ.NE.0) THEN
+          ICPACK(1)=G(J,2)
+          CALL MPI_SEND(ICPACK,1,MPI_DOUBLE_PRECISION,RANKY-1,15
+     &                 ,MPI_COMM_Y,ierror)
+        END IF
+      END DO
+
+      RETURN
+      END
+
+
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+      SUBROUTINE TDMA_F_COMP_DUCT_Z_MPI(A,B,C,G,INY,INZ)
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+C Tri-Diagonal Matrix Algorithm FORWARD sweep in Z-DIRECTION. Input data is in
+C Fourier (COMPLEX) space and formatted for DUCT geometry in YZ.
+C Requires no communication.
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+      INCLUDE 'header'
+
+      INTEGER I,J,K,INY,INZ
+      REAL*8 A(0:INY+1,0:INZ+1), B(0:INY+1,0:INZ+1), C(0:INY+1,0:INZ+1)
+      COMPLEX*16 G(0:INY+1,0:INZ+1)
+
+      DO J=1,INY
+C Do interior points on each process
+        DO K=2,INZ
+          IF (B(J,K-1).NE.0.d0) THEN
+            A(J,K)=-A(J,K)/B(J,K-1)
+          ELSE
+            A(J,K)=0.d0
+          END IF
+          B(J,K)=B(J,K)+A(J,K)*C(J,K-1)
+          G(J,K)=G(J,K)+A(J,K)*G(J,K-1)
+        END DO
+      END DO
+      
+      RETURN
+      END
+
+
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+      SUBROUTINE TDMA_B_COMP_DUCT_Z_MPI(A,B,C,G,INY,INZ)
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+C Tri-Diagonal Matrix Algorithm BACKWARD sweep in Z-DIRECTION. Input data is in
+C Fourier (COMPLEX) space and formatted for DUCT geometry in YZ.
+C Requires no communication.
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+      INCLUDE 'header'
+
+      INTEGER I,J,K,INY,INZ
+      REAL*8 A(0:INY+1,0:INZ+1), B(0:INY+1,0:INZ+1), C(0:INY+1,0:INZ+1)
+      COMPLEX*16 G(0:INY+1,0:INZ+1)
+
+      DO J=1,INY
+C Compute the solution at K=INZ      
+        IF (B(J,INZ).NE.0.d0) THEN
+          G(J,INZ)=G(J,INZ)/B(J,INZ)
+        ELSE
+          G(J,INZ)=0.d0
+        END IF
+C Do interior points on each process
+        DO K=INZ-1,1,-1
+          IF (B(J,K).NE.0.d0) THEN
+            G(J,K)=(G(J,K)-C(J,K)*G(J,K+1))/B(J,K)
+          ELSE
+            G(J,K)=0.d0
+          END IF
+        END DO
+      END DO
+
+      RETURN
+      END
+
+
+
+
+
+
+
+
+
+
+C depreciated TDMA routines below
+      
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+      SUBROUTINE THOMAS_FORWARD_REAL_DUCT_MPI(A,B,C,G,INY,INZ)
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+C Tri-Diagonal Matrix Algorithm forward sweep in Y-direction. Input data is in
+C physical (real) space and formatted for duct geometry as YZ slices.
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+      INCLUDE 'header'
+
+      INTEGER I,J,INY,INZ
+      REAL*8 A(0:INY+1,0:INZ+1), B(0:INY+1,0:INZ+1), C(0:INY+1,0:INZ+1)
+     &     , G(0:INY+1,0:INZ+1)
+      REAL*8 OCPACK(4,0:INZ+1),ICPACK(4,0:INZ+1)
+
+!       IF (RANKY.NE.0) THEN
+! C If we aren't the lowest process, then wait for data
+!         CALL MPI_RECV(OCPACK,4*(INZ+2),MPI_DOUBLE_PRECISION,RANKY-1,12
+!      &               ,MPI_COMM_Y,status,ierror)
+! C Unpack the data
+!         DO K=0,INZ+1
+!           A(1,K)=OCPACK(1,K)
+!           B(1,K)=OCPACK(2,K)
+!           C(1,K)=OCPACK(3,K)
+!           G(1,K)=OCPACK(4,K)
+!         END DO
+! ! If we aren't the lowest process, start at J=2
+!         DO J=2,INY
+!           DO K=0,INZ+1
+!             A(J,K)=-A(J,K)/B(J-1,K)
+!             B(J,K)=B(J,K)+A(J,K)*C(J-1,K)
+!             G(J,K)=G(J,K)+A(J,K)*G(J-1,K)
+!           END DO
+!         END DO
+!       ELSE
+! ! Here, we are the lowest process, start solving at J=1
+!         DO J=1,INY
+!           DO I=0,INX-1
+!           A(I,J)=-A(I,J)/B(I,J-1)
+!           B(I,J)=B(I,J)+A(I,J)*C(I,J-1)
+!           G(I,J)=G(I,J)+A(I,J)*G(I,J-1)
+!           END DO
+!         END DO
+!       END IF
+
+!       IF (RANKY.NE.NPROCY-1) THEN
+! C If we aren't the upper process, then wait for data
+!         DO I=0,INX-1
+!         ICPACK(I,1)=A(I,INY)
+!         ICPACK(I,2)=B(I,INY)
+!         ICPACK(I,3)=C(I,INY)
+!         ICPACK(I,4)=G(I,INY)
+!         END DO
+!         CALL MPI_SEND(ICPACK,4*INX,MPI_DOUBLE_PRECISION,RANKY+1,12
+!      &               ,MPI_COMM_Y,ierror)
+!       ELSE
+! ! Here, we are at the upper process, so solve one more row containing
+! ! the boundary conditions
+!         J=INY+1
+!         DO I=0,INX-1
+!         A(I,J)=-A(I,J)/B(I,J-1)
+!         B(I,J)=B(I,J)+A(I,J)*C(I,J-1)
+!         G(I,J)=G(I,J)+A(I,J)*G(I,J-1)
+!         END DO
+!       END IF
+
+      RETURN
+      END
+
+
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+      SUBROUTINE THOMAS_FORWARD_COMPLEX_DUCT_MPI(A,B,C,G,INY,INZ)
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+      INCLUDE 'header'
+
+      INTEGER I,J,K,INY,INZ
+      REAL*8 A(0:INY+1,0:INZ+1), B(0:INY+1,0:INZ+1), C(0:INY+1,0:INZ+1)
+      COMPLEX*16 G(0:INY+1,0:INZ+1)
+      COMPLEX*16 OCPACK(4),ICPACK(4)
+
+      DO K=1,INZ
+C If we aren't the lowest process, then wait for data from below
+        IF (RANKY.NE.0) THEN
+          CALL MPI_RECV(OCPACK,4,MPI_DOUBLE_COMPLEX,RANKY-1,13
+     &               ,MPI_COMM_Y,status,ierror)
+C Unpack the data
+          A(1,K)=REAL(OCPACK(1))
+          B(1,K)=REAL(OCPACK(2))
+          C(1,K)=REAL(OCPACK(3))
+          G(1,K)=OCPACK(4)
+        END IF
+
+C Do interior points on each process
+        DO J=2,INY
+          IF (B(J-1,K).NE.0.d0) THEN
+            A(J,K)=-A(J,K)/B(J-1,K)
+          ELSE
+            A(J,K)=0.d0
+          END IF
+          B(J,K)=B(J,K)+A(J,K)*C(J-1,K)
+          G(J,K)=G(J,K)+A(J,K)*G(J-1,K)
+        END DO
+
+C If we aren't the highest process, then send data upwards
+        IF (RANKY.NE.NPROCY-1) THEN
+          ICPACK(1)=A(INY,K)
+          ICPACK(2)=B(INY,K)
+          ICPACK(3)=C(INY,K)
+          ICPACK(4)=G(INY,K)
+          CALL MPI_SEND(ICPACK,4,MPI_DOUBLE_COMPLEX,RANKY+1,13
+     &               ,MPI_COMM_Y,ierror)
+        END IF
+      END DO
+
+      RETURN
+      END
+
+
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+      SUBROUTINE THOMAS_BACKWARD_REAL_DUCT_MPI(A,B,C,G,INY,INZ)
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+
+      RETURN
+      END
+
+
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+      SUBROUTINE THOMAS_BACKWARD_COMPLEX_DUCT_MPI(A,B,C,G,INY,INZ)
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+      INCLUDE 'header'
+
+      INTEGER I,J,K,INY,INZ
+      REAL*8 A(0:INY+1,0:INZ+1), B(0:INY+1,0:INZ+1), C(0:INY+1,0:INZ+1)
+      COMPLEX*16 G(0:INY+1,0:INZ+1)
+
+      DO K=1,INZ
+C If we aren't the highest process, then wait for data from above
+        IF (RANKY.NE.NPROCY-1) THEN
+          CALL MPI_RECV(G(INY+1,K),1,MPI_DOUBLE_COMPLEX,RANKY+1,11
+     &               ,MPI_COMM_Y,status,ierror)
+          IF (B(INY,K).NE.0.d0) THEN
+            G(INY,K)=(G(INY,K)-C(INY,K)*G(INY+1,K))/B(INY,K)
+          END IF
+        ELSE
+C If we are the highest process, then compute the solution at J=INY
+          IF (B(INY,K).NE.0.d0) THEN
+            G(INY,K)=G(INY,K)/B(INY,K)
+          ELSE
+            G(INY,K)=0.d0
+          END IF
+        END IF
+
+C Do interior points on each process
+        DO J=INY-1,1,-1
+          IF (B(J,K).NE.0.d0) THEN
+            G(J,K)=(G(J,K)-C(J,K)*G(J+1,K))/B(J,K)
+          ELSE
+            G(J,K)=0.d0
+          END IF
+        END DO
+
+C If we aren't the lowest process, then send data down
+        IF (RANKY.NE.0) THEN
+          CALL MPI_SEND(G(2,K),1,MPI_DOUBLE_COMPLEX,RANKY-1,11
+     &               ,MPI_COMM_Y,ierror)
+        END IF
+      END DO
+
+      RETURN
+      END
+      
+
+
 !----*|--.---------.---------.---------.---------.---------.---------.-|------
       SUBROUTINE INIT_MPI
 C----*|--.---------.---------.---------.---------.---------.---------.-|-----|
@@ -1019,6 +1765,10 @@ c     ------------------------------
       call MPI_TYPE_COMMIT(X2Z_1,ierror)
       call MPI_TYPE_FREE(TYPE1,ierror)
 
+    !   call MPI_TYPE_VECTOR(NZP+2,NXP,NX/2,
+    !  &     MPI_DOUBLE_COMPLEX,X2Z_1,ierror)
+    !   call MPI_TYPE_COMMIT(X2Z_1,ierror)
+
       ! Box full x to z (2)
       call MPI_TYPE_VECTOR(NZP+2,NXP,NXP,
      &     MPI_DOUBLE_COMPLEX,X2Z_2,ierror)
@@ -1141,6 +1891,33 @@ C Initialize any constants here
         END IF
       RETURN
       END
+
+
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+      SUBROUTINE APPLY_BC_TH_DUCT_MPI(MATL_YZ,MATD_YZ,
+     &         MATU_YZ,VEC_YZ,N)
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+! This subroutine applies the boundary conditions to the
+! scalar fields prior to the implicit solve
+! We need to check to see which processor we are, if we are
+! the upper or lowermost process, then apply boundary conditions
+      INCLUDE 'header'
+      INTEGER N
+
+      IF (RANKZ.EQ.0) THEN
+        CALL APPLY_BC_TH_ZLOWER_DUCT(N)
+      ELSE IF (RANKZ.EQ.NPROCZ-1) THEN
+        CALL APPLY_BC_TH_ZUPPER_DUCT(N)
+      END IF
+      IF (RANKY.EQ.0) THEN
+        CALL APPLY_BC_TH_YLOWER_DUCT(N)
+      ELSE IF (RANKY.EQ.NPROCY-1) THEN
+        CALL APPLY_BC_TH_YUPPER_DUCT(N)
+      END IF
+
+      RETURN
+      END
+
 
       SUBROUTINE APPLY_BC_TH_MPI_C(MATL_C,MATD_C,MATU_C,VEC_C,N)
 ! This subroutine applies the boundary conditions to the
@@ -1320,6 +2097,163 @@ C Apply the boundary conditions
         RETURN
         END
 
+
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+      SUBROUTINE APPLY_BC_REM_DIV_DUCT_MPI(MATL_C_YZ,MATD_C_YZ,
+     &         MATU_C_YZ,VEC_C_YZ,I)
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+      INCLUDE 'header'
+
+      INTEGER I,J,K
+
+C First, apply BC in Z
+      DO J=1,NY
+C Use Neumann boundary conditions, dp/dz=0 at walls
+        MATL_C_YZ(J,1)=0.
+        MATD_C_YZ(J,1)=1.
+        MATU_C_YZ(J,1)=-1.
+        VEC_C_YZ(J,1)=(0.,0.)
+        MATL_C_YZ(J,NZ)=1.
+        MATD_C_YZ(J,NZ)=-1.
+        MATU_C_YZ(J,NZ)=0.
+        VEC_C_YZ(J,NZ)=(0.,0.)
+      END DO
+
+
+C Apply BC in Y
+C Check which processor we are on, only apply BC on top and bottom process
+      IF (RANKY.EQ.0) THEN
+        DO K=1,NZ
+          IF ((K.EQ.1).AND.(I.EQ.0).AND.(RANKZ.EQ.0)) THEN
+C Use homogeneous Dirichlet BC for kx=0 component at bottom YZ corner
+C Otherwise the matrix will be singular
+            MATL_C_YZ(1,K)=0.
+            MATD_C_YZ(1,K)=1.
+            MATU_C_YZ(1,K)=0.
+            VEC_C_YZ(1,K)=(0.,0.)
+          ELSE
+C Use Neumann boundary conditions, dp/dz=0 at walls
+            MATL_C_YZ(1,K)=0.
+            MATD_C_YZ(1,K)=1.
+            MATU_C_YZ(1,K)=-1.
+            VEC_C_YZ(1,K)=(0.,0.)
+          END IF
+        END DO
+      ELSEIF (RANKY.EQ.NPROCY-1) THEN
+        DO K=1,NZ
+          MATL_C_YZ(NY,K)=1.
+          MATD_C_YZ(NY,K)=-1.
+          MATU_C_YZ(NY,K)=0.
+          VEC_C_YZ(NY,K)=(0.,0.)
+        END DO
+      END IF
+
+      RETURN
+      END
+
+
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+      SUBROUTINE APPLY_BC_REM_DIV_DUCT_Y_MPI(MATL_C_YZ,MATD_C_YZ,
+     &         MATU_C_YZ,VEC_C_YZ,I)
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+      INCLUDE 'header'
+
+      INTEGER I,J,K
+
+C First, apply BC in Z
+      ! DO J=1,NY
+      !   VEC_C_YZ(J,1)=(0.,0.)
+      !   VEC_C_YZ(J,NZ)=(0.,0.)
+      ! END DO
+
+C Apply BC in Y
+C Check which processor we are on, only apply BC on top and bottom process
+      IF (RANKY.EQ.0) THEN
+        DO K=1,NZ
+          IF ((I.EQ.0).AND.(RANKZ.EQ.0)) THEN
+C Use homogeneous Dirichlet BC for kx=0 component at bottom YZ corner
+C Otherwise the matrix will be singular
+            MATL_C_YZ(1,K)=0.
+            MATD_C_YZ(1,K)=1.
+            MATU_C_YZ(1,K)=0.
+            VEC_C_YZ(1,K)=(0.,0.)
+          ELSE
+C Use Neumann boundary conditions, dp/dz=0 at walls
+            MATL_C_YZ(1,K)=0.
+            MATD_C_YZ(1,K)=1.
+            MATU_C_YZ(1,K)=-1.
+            VEC_C_YZ(1,K)=(0.,0.)
+          END IF
+        END DO
+      ELSEIF (RANKY.EQ.NPROCY-1) THEN
+        DO K=1,NZ
+          MATL_C_YZ(NY,K)=1.
+          MATD_C_YZ(NY,K)=-1.
+          MATU_C_YZ(NY,K)=0.
+          VEC_C_YZ(NY,K)=(0.,0.)
+        END DO
+      END IF
+
+      RETURN
+      END
+
+
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+      SUBROUTINE APPLY_BC_REM_DIV_DUCT_Z_MPI(MATL_C_YZ,MATD_C_YZ,
+     &         MATU_C_YZ,VEC_C_YZ,I)
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+      INCLUDE 'header'
+
+      INTEGER I,J,K
+
+C First, apply BC in Y (including numerical processor boundary??)
+      ! IF (RANKY.EQ.0) THEN
+      !   DO K=1,NZ
+      !     VEC_C_YZ(1,K)=(0.,0.)
+      !   END DO
+      ! ELSEIF (RANKY.EQ.NPROCY-1) THEN
+      !   DO K=1,NZ
+      !     VEC_C_YZ(NY,K)=(0.,0.)
+      !   END DO
+      ! END IF
+      ! DO K=1,NZ
+      !   VEC_C_YZ(1,K)=(0.,0.)
+      !   VEC_C_YZ(NY,K)=(0.,0.)
+      ! END DO
+
+C Apply BC in Z
+      DO J=1,NY
+        IF ((I.EQ.0).AND.(RANKZ.EQ.0)) THEN
+C Use homogeneous Dirichlet BC for kx=0 component at bottom YZ corner
+C Otherwise the matrix will be singular
+          MATL_C_YZ(J,1)=0.
+          MATD_C_YZ(J,1)=1.
+          MATU_C_YZ(J,1)=0.
+          VEC_C_YZ(J,1)=(0.,0.)
+        ELSE
+C Use Neumann boundary conditions, dp/dz=0 at walls
+          MATL_C_YZ(J,1)=0.
+          MATD_C_YZ(J,1)=1.
+          MATU_C_YZ(J,1)=-1.
+          VEC_C_YZ(J,1)=(0.,0.)
+        END IF
+      END DO
+      DO J=1,NY
+        MATL_C_YZ(J,NZ)=1.
+        MATD_C_YZ(J,NZ)=-1.
+        MATU_C_YZ(J,NZ)=0.
+        VEC_C_YZ(J,NZ)=(0.,0.)
+      END DO
+
+      RETURN
+      END
+
+
+
+
+
+
+
       SUBROUTINE APPLY_BC_POISSON_MPI(MATL_C,MATD_C,MATU_C,VEC_C,K)
 ! This subroutine applies the boundary conditions for the Poisson Eq.
 ! Note, MATL, MATD, etc. are dimensioned in header
@@ -1357,17 +2291,28 @@ C prevent the tridiagonal matrix from becomming singular for i,k=0
       RETURN
       END
 
+
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
       SUBROUTINE APPLY_BC_VEL_MPI
-! This subroutine applies the boundary conditions for the Poisson Eq.
-! Note, MATL, MATD, etc. are dimensioned in header
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
       INCLUDE 'header'
 
-! Apply Boundary conditions to velocity field
-      IF (RANKY.EQ.0) THEN
-        CALL APPLY_BC_VEL_LOWER
-      END IF
-      IF (RANKY.EQ.NPROCY-1) THEN
-        CALL APPLY_BC_VEL_UPPER
+      IF (NUM_PER_DIR.EQ.2) THEN
+        IF (RANKY.EQ.0) THEN
+          CALL APPLY_BC_VEL_LOWER
+        ELSE IF (RANKY.EQ.NPROCY-1) THEN
+          CALL APPLY_BC_VEL_UPPER
+        END IF
+      ELSE IF (NUM_PER_DIR.EQ.1) THEN
+        ! in duct flow Fourier space, Z data is not split between procs
+        CALL APPLY_BC_VEL_ZLOWER_DUCT
+        CALL APPLY_BC_VEL_ZUPPER_DUCT
+        ! apply Y BC second
+        IF (RANKY.EQ.0) THEN
+          CALL APPLY_BC_VEL_YLOWER_DUCT
+        ELSE IF (RANKY.EQ.NPROCY-1) THEN
+          CALL APPLY_BC_VEL_YUPPER_DUCT
+        END IF
       END IF
 
       RETURN
@@ -1548,6 +2493,43 @@ C Initialize any constants here
         END DO
       END IF
 
+C When variables are in Fourier space, data is not divided in Z.
+C We need lower and upper bounds that are consistent across all
+C processors - denoted by kstartC, kendC, etc.
+      IF (U_BC_ZMIN.EQ.0) THEN
+        KSTARTC=2
+      ELSE IF (U_BC_ZMIN.EQ.1) THEN
+        KSTARTC=2
+      ELSE
+        KSTARTC=2
+      END IF
+      DO N=1,N_TH
+        IF (TH_BC_ZMIN(N).EQ.0) THEN
+          KSTARTC_TH(N)=2
+        ELSE IF (TH_BC_ZMIN(N).EQ.1) THEN
+          KSTARTC_TH(N)=1
+        ELSE
+          KSTARTC_TH(N)=2
+        END IF
+      END DO
+
+      IF (U_BC_ZMAX.EQ.0) THEN
+        KENDC=NZ-1
+      ELSE IF (U_BC_ZMAX.EQ.1) THEN
+        KENDC=NZ-1
+      ELSE
+        KENDC=NZ-1
+      END IF
+      DO N=1,N_TH
+        IF (TH_BC_ZMAX(N).EQ.0) THEN
+          KENDC_TH(N)=NZ-1
+        ELSE IF (TH_BC_ZMAX(N).EQ.1) THEN
+          KENDC_TH(N)=NZ
+        ELSE
+          KENDC_TH(N)=NZ-1
+        END IF
+      END DO
+
       RETURN
       END
 
@@ -1653,36 +2635,55 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
 
       REAL*8     V  (0:NX+1,0:NZP+1,0:NY+1)
       COMPLEX*16 VV (0:NXP ,0:NZ +1,0:NY+1)
-      COMPLEX*16 TMP1(0:NX/2,0:NZP+1,0:NY+1)
+      COMPLEX*16 TMP(0:NX/2,0:NZP+1,0:NY+1)
       COMPLEX*16 TMP1A(0:NX/2-1,0:NZP+1,0:NY+1)
       COMPLEX*16 TMP2(0:NXP-1,0:(NZP+2)*NPROCZ-1)
 
       INTEGER I,J,K, N
       INTEGER JMIN,JMAX
+      ! CHARACTER*55 FNAME
 
       
       ! FFT in X
       DO J=JMIN,JMAX
         CALL DFFTW_EXECUTE_DFT_R2C(FFTW_X_TO_F_PLAN,
-     *     V(0,0,J), TMP1(0,0,J))
+     *     V(0,0,J), TMP(0,0,J))
         DO K=0,NZP+1
           DO I=0,NKX
-            TMP1(I,K,J)=TMP1(I,K,J)/NX
-            TMP1A(I,K,J)=TMP1(I,K,J)
+            TMP(I,K,J)=TMP(I,K,J)/NX
+            TMP1A(I,K,J)=TMP(I,K,J)
           END DO
           DO I=NKX+1,NX/2
-            TMP1(I,K,J)=cmplx(0.d0,0.d0)
+            TMP(I,K,J)=cmplx(0.d0,0.d0)
           END DO
           DO I=NKX+1,NX/2-1
-            TMP1A(I,K,J)=TMP1(I,K,J)
+            TMP1A(I,K,J)=TMP(I,K,J)
           END DO
         END DO
       END DO
+
+      ! WRITE(*,*) 'writing TMP1A on rank ', RANK  
+      ! FNAME='TMP1A_'//char(RANK+48)//'.dat'
+      ! OPEN(UNIT=15,FILE=FNAME,STATUS="UNKNOWN",FORM="FORMATTED")
+      ! WRITE(15,151) real(TMP1A)
+      ! CLOSE(15)
+
+    !   WRITE(*,*) 'FFT CU2;   RANK',RANK,
+    !  &  '; VV loc 1',LOC(VV(0,0,0)),'; VV loc 2',LOC(VV(NXP,NZ+1,NY+1))
+
+
+    !   WRITE(*,*) 'writing TMP2 on rank ', RANK  
+    !   FNAME='TMP2_'//char(RANK+48)//'.dat'
+    !   OPEN(UNIT=15,FILE=FNAME,STATUS="UNKNOWN",FORM="FORMATTED")
+      
+      
 
       ! reconfigure and send
       DO J=JMIN,JMAX
         CALL MPI_ALLTOALL(TMP1A(0,0,J),1,X2Z_1,TMP2,1,X2Z_2,
      &     MPI_COMM_Z,IERROR)
+
+      ! WRITE(15,151) real(TMP2)
 
         ! first Z processor
         DO K=0,NZP
@@ -1698,7 +2699,11 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
             VV(I,(NZP-1)*(NPROCZ-1)+2+K,J)
      &          =TMP2(I,(NZP+2)*(NPROCZ-1)+2+K)
           END DO
-          VV(NXP,K,J)=cmplx(0.d0,0.d0)
+          VV(NXP,(NZP-1)*(NPROCZ-1)+2+K,J)=cmplx(0.d0,0.d0)
+    !       IF (RANK.EQ.0) WRITE(*,*) 'RANK ',RANK,';  J ',J,
+    !  &     ';  K ',K,';  ind ',(NZP-1)*(NPROCZ-1)+2+K
+    !       IF (RANK.EQ.0) WRITE(*,*) '             '
+    !  &     ,(NZP+2)*(NPROCZ-1)+2+K
         END DO
         
         ! intermediate Z processors (if NPROCZ>2)
@@ -1707,17 +2712,26 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
             DO I=0,NXP-1
               VV(I,(NZP-1)*N+2+K,J)=TMP2(I,(NZP+2)*N+2+K)
             END DO
-            VV(NXP,K,J)=cmplx(0.d0,0.d0)
+            VV(NXP,(NZP-1)*N+2+K,J)=cmplx(0.d0,0.d0)
           END DO
         END DO
 
       END DO
+!       CLOSE(15)
+
+!       WRITE(*,*) 'writing VV on rank ', RANK  
+!       FNAME='VV_'//char(RANK+48)//'.dat'
+!       OPEN(UNIT=15,FILE=FNAME,STATUS="UNKNOWN",FORM="FORMATTED")
+!       WRITE(15,151) real(VV)
+!       CLOSE(15)
+
+! 151   format(F30.20)
 
       END SUBROUTINE
 
 
 C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
-      SUBROUTINE FFT_X_TO_PHYSICAL(V,VV,JMIN,JMAX)
+      SUBROUTINE FFT_X_TO_PHYSICAL(VV,V,JMIN,JMAX)
 C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
 C This routine transforms (in 1 direction) planes JMIN-JMAX to physical space.
 C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
@@ -1725,7 +2739,7 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
 
       REAL*8     V  (0:NX+1,0:NZP+1,0:NY+1)
       COMPLEX*16 VV (0:NXP ,0:NZ +1,0:NY+1)
-      COMPLEX*16 TMP1(0:NX/2,0:NZP+1,0:NY+1)
+      COMPLEX*16 TMP(0:NX/2,0:NZP+1,0:NY+1)
       COMPLEX*16 TMP1A(0:NX/2-1,0:NZP+1,0:NY+1)
       COMPLEX*16 TMP2(0:NXP-1,0:(NZP+2)*NPROCZ-1)
 
@@ -1770,14 +2784,14 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
       DO J=JMIN,JMAX
         DO K=0,NZP+1
           DO I=0,NKX
-            TMP1(I,K,J)=TMP1A(I,K,J)
+            TMP(I,K,J)=TMP1A(I,K,J)
           END DO
           DO I=NKX+1,NX/2
-            TMP1(I,K,J)=cmplx(0.d0,0.d0)
+            TMP(I,K,J)=cmplx(0.d0,0.d0)
           END DO
         END DO
         CALL DFFTW_EXECUTE_DFT_C2R(FFTW_X_TO_P_PLAN,
-     *       TMP1(0,0,J), V(0,0,J))
+     *       TMP(0,0,J), V(0,0,J))
       END DO
 
       END SUBROUTINE
