@@ -202,7 +202,7 @@ C or   BETA=2, etc. for hyper viscosity/diffusivity
 ! Do for each scalar
       DO N=1,N_TH
 
-! If a scalar contributes to the denisty, RI is not equal to zero and
+! If a scalar contributes to the density, RI is not equal to zero and
 ! add the buoyancy term as explicit R-K.  Don't add the 0,0 mode in the
 ! y-direction, which corresponds to the plane-average.
 ! The plane averaged density balances the hydrostatic pressure
