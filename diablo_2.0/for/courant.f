@@ -54,6 +54,11 @@
          call get_minimum_mpi(dt)
       end if
 
+! during initial spinup, do not let dt increase by more than 50%
+      IF (TIME_STEP.LE.100) THEN
+        dt=min(dt,1.5*DELTA_T)
+      END IF
+
       if (dt.le.0) then
         IF (RANK.EQ.0)
      &        write(*,*) 'Error: dt<=0 in courant'
