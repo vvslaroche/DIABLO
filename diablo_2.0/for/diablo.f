@@ -55,6 +55,7 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
       INCLUDE 'header'
       INTEGER N
       LOGICAL FLAG
+      INTEGER TEMP
 
       CALL INITIALIZE
 ! Initialize START_TIME for run timing
@@ -63,7 +64,10 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
 C A flag to determine if we are considering the first time-step
       FIRST_TIME=.TRUE.
 
-      DO TIME_STEP = TIME_STEP+1, TIME_STEP+N_TIME_STEPS
+      TEMP=0
+      IF (N_TIME_STEPS.LT.0) TEMP=10000000
+
+      DO TIME_STEP = TIME_STEP+1, TIME_STEP+N_TIME_STEPS+TEMP
         IF (RANK.EQ.0) 
      &        WRITE(6,*) 'Now beginning TIME_STEP = ',TIME_STEP
 
@@ -90,7 +94,7 @@ C A flag to determine if we are considering the first time-step
              CALL SAVE_STATS(.FALSE.)
           END IF
         ELSE
-           IF (MOD(TIME_STEP,SAVE_STATS_INT).EQ.0) THEN
+           IF (MOD(REAL(TIME_STEP),SAVE_STATS_INT).EQ.0) THEN
               CALL SAVE_STATS(.FALSE.)
            END IF
         END IF
