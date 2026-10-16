@@ -1143,24 +1143,10 @@ C Now, create the RHS vector
           END DO
         END DO
 
-      IF (K.EQ.0) THEN
-      WRITE(*,*) 'writing VEC_C_CHECK1 on rank ', RANK  
-      FNAME='VEC_C_CHECK1_'//char(RANK+48)//'.dat'
-      OPEN(UNIT=15,FILE=FNAME,STATUS="UNKNOWN",FORM="FORMATTED")
-      WRITE(15,151) real(VEC_C)
-      CLOSE(15)
-      END IF
 
         IF (USE_MPI) THEN
 C If we are using the MPI package...
           CALL APPLY_BC_REM_DIV_MPI(MATL_C,MATD_C,MATU_C,VEC_C,K)
-      IF (K.EQ.0) THEN
-      WRITE(*,*) 'writing VEC_C_CHECK2 on rank ', RANK  
-      FNAME='VEC_C_CHECK2_'//char(RANK+48)//'.dat'
-      OPEN(UNIT=15,FILE=FNAME,STATUS="UNKNOWN",FORM="FORMATTED")
-      WRITE(15,151) real(VEC_C)
-      CLOSE(15)
-      END IF
 C First, do all forward sweeps
           CALL THOMAS_FORWARD_COMPLEX_MPI(MATL_C,MATD_C,MATU_C,VEC_C
      &                                 ,NY,NXP)
@@ -1199,13 +1185,6 @@ C Now solve the tridiagonal system for phi, store in CR1
         CALL THOMAS_COMPLEX(MATL_C,MATD_C,MATU_C,VEC_C,NY,NKX)
         END IF
 
-      IF (K.EQ.0) THEN
-      WRITE(*,*) 'writing VEC_C_CHECK3 on rank ', RANK  
-      FNAME='VEC_C_CHECK3_'//char(RANK+48)//'.dat'
-      OPEN(UNIT=15,FILE=FNAME,STATUS="UNKNOWN",FORM="FORMATTED")
-      WRITE(15,151) real(VEC_C)
-      CLOSE(15)
-      END IF
 
         DO J=1,NY
           DO I=0,NXP-1
