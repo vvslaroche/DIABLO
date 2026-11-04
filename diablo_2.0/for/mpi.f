@@ -1274,6 +1274,313 @@ C If we aren't the lowest process, then send data down
 
 
 C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+      SUBROUTINE GAUSS_NOPIVOT(M, N)
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+C In-place LU decomposition of a real N x N matrix M, no pivoting.
+C On entry: M holds the matrix to factor.
+C On exit:  M holds the combined L (strict lower triangle, unit diagonal
+C           implied) and U (upper triangle including diagonal) factors.
+C Used by REM_DIV_DUCT4 block-Thomas inner solve (NZ x NZ dense block).
+C The diagonal blocks D_J in that solve are diagonally dominant for
+C kx /= 0 modes; the kx=0 anchor BC keeps the kx=0 system well-posed.
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+      INCLUDE 'header'
+
+      INTEGER N
+      REAL*8 M(0:NZ+1, 0:NZ+1)
+      INTEGER I, J, K
+      REAL*8 PIV
+
+      DO K = 1, N-1
+        PIV = M(K, K)
+        DO I = K+1, N
+          M(I, K) = M(I, K) / PIV
+          DO J = K+1, N
+            M(I, J) = M(I, J) - M(I, K) * M(K, J)
+          END DO
+        END DO
+      END DO
+
+      RETURN
+      END
+
+
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+      SUBROUTINE GAUSS_SOLVE_R(M, RHS, NRHS, N)
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+C Forward and back substitution against the LU factors stored in M
+C (output of GAUSS_NOPIVOT). Real RHS variant.
+C RHS has shape (0:NZ+1, 0:NZ+1) with active entries (1..N, 1..NRHS),
+C overwritten in-place with the solution.
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+      INCLUDE 'header'
+
+      INTEGER N, NRHS
+      REAL*8 M(0:NZ+1, 0:NZ+1)
+      REAL*8 RHS(0:NZ+1, 0:NZ+1)
+      INTEGER I, J, R
+
+      DO R = 1, NRHS
+C Forward solve L y = RHS (L has unit diagonal, stored in strict lower)
+        DO I = 2, N
+          DO J = 1, I-1
+            RHS(I, R) = RHS(I, R) - M(I, J) * RHS(J, R)
+          END DO
+        END DO
+C Back solve U x = y (U stored in upper triangle including diagonal)
+        DO I = N, 1, -1
+          DO J = I+1, N
+            RHS(I, R) = RHS(I, R) - M(I, J) * RHS(J, R)
+          END DO
+          RHS(I, R) = RHS(I, R) / M(I, I)
+        END DO
+      END DO
+
+      RETURN
+      END
+
+
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+      SUBROUTINE GAUSS_SOLVE_C(M, RHS, N)
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+C Forward and back substitution against the LU factors stored in M
+C (output of GAUSS_NOPIVOT). Single-RHS complex vector variant.
+C M is real LU; RHS is complex; mixed-type arithmetic is handled by Fortran.
+C RHS has shape (0:NZ+1) with active entries (1..N), overwritten in-place
+C with the solution.
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+      INCLUDE 'header'
+
+      INTEGER N
+      REAL*8 M(0:NZ+1, 0:NZ+1)
+      COMPLEX*16 RHS(0:NZ+1)
+      INTEGER I, J
+
+      DO I = 2, N
+        DO J = 1, I-1
+          RHS(I) = RHS(I) - M(I, J) * RHS(J)
+        END DO
+      END DO
+      DO I = N, 1, -1
+        DO J = I+1, N
+          RHS(I) = RHS(I) - M(I, J) * RHS(J)
+        END DO
+        RHS(I) = RHS(I) / M(I, I)
+      END DO
+
+      RETURN
+      END
+
+
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+      SUBROUTINE BLOCK_TDMA_F_COMP_DUCT_Y_MPI(INY, INZ)
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+C Block-Thomas FORWARD sweep in Y for the REM_DIV_DUCT4 pentadiagonal solver.
+C Operates on /PENTA_VARS/ arrays from header. Pipeline mirrors
+C TDMA_F_COMP_DUCT_Y_MPI: each rank waits for the rank below to finish,
+C does its NY block-row eliminations, then sends to the rank above.
+C Per neighbor exchange: INZ*INZ + INZ complex doubles (F block + G' vector).
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+      INCLUDE 'header'
+
+      INTEGER INY, INZ
+      INTEGER J, K, K1, K2, IDX
+      INTEGER MSGSIZE
+      COMPLEX*16 SBUF(0:NZ*NZ + NZ)
+      COMPLEX*16 GTMP(0:NZ+1)
+
+      MSGSIZE = INZ*INZ + INZ
+
+C Initialize J=1 state on this rank
+      IF (RANKY.NE.0) THEN
+C Receive packed (F_block, G'_vec) from rank below; place at J=1 slot
+        CALL MPI_RECV(SBUF, MSGSIZE, MPI_DOUBLE_COMPLEX, RANKY-1, 15
+     &               ,MPI_COMM_Y, status, ierror)
+        IDX = 0
+        DO K2 = 1, INZ
+          DO K1 = 1, INZ
+            IDX = IDX + 1
+            F_WORK(K1, K2, 1) = REAL(SBUF(IDX))
+          END DO
+        END DO
+        DO K = 1, INZ
+          IDX = IDX + 1
+          G_PENTA(1, K) = SBUF(IDX)
+        END DO
+      ELSE
+C Rank 0: factor B_1 to obtain F_1 = B_1^{-1} C_1 and G'_1 = B_1^{-1} G_1.
+C With Y-floor BCs applied, B_1 is identity, but we use the general path
+C so any future BC tweak still produces correct F_1 / G'_1.
+        DO K2 = 0, INZ+1
+          DO K1 = 0, INZ+1
+            D_WORK(K1, K2) = 0.d0
+          END DO
+        END DO
+        DO K = 1, INZ
+          D_WORK(K, K) = B_PENTA(1, K, 2)
+          IF (K.GT.1)   D_WORK(K, K-1) = B_PENTA(1, K, 1)
+          IF (K.LT.INZ) D_WORK(K, K+1) = B_PENTA(1, K, 3)
+        END DO
+        CALL GAUSS_NOPIVOT(D_WORK, INZ)
+
+C F_WORK(:,:,1) = D_WORK^{-1} * diag(C_PENTA(1,:))
+        DO K2 = 0, INZ+1
+          DO K1 = 0, INZ+1
+            F_WORK(K1, K2, 1) = 0.d0
+          END DO
+        END DO
+        DO K = 1, INZ
+          F_WORK(K, K, 1) = C_PENTA(1, K)
+        END DO
+        CALL GAUSS_SOLVE_R(D_WORK, F_WORK(0,0,1), INZ, INZ)
+
+C G_PENTA(1,:) <- D_WORK^{-1} * G_PENTA(1,:)
+        DO K = 0, INZ+1
+          GTMP(K) = G_PENTA(1, K)
+        END DO
+        CALL GAUSS_SOLVE_C(D_WORK, GTMP, INZ)
+        DO K = 0, INZ+1
+          G_PENTA(1, K) = GTMP(K)
+        END DO
+      END IF
+
+C Block elimination over J=2..INY
+      DO J = 2, INY
+C Inflate B_PENTA(J,:,:) (tridiagonal in K) into dense D_WORK
+        DO K2 = 0, INZ+1
+          DO K1 = 0, INZ+1
+            D_WORK(K1, K2) = 0.d0
+          END DO
+        END DO
+        DO K = 1, INZ
+          D_WORK(K, K) = B_PENTA(J, K, 2)
+          IF (K.GT.1)   D_WORK(K, K-1) = B_PENTA(J, K, 1)
+          IF (K.LT.INZ) D_WORK(K, K+1) = B_PENTA(J, K, 3)
+        END DO
+
+C D_WORK <- D_WORK - diag(A_PENTA(J,:)) * F_WORK(:,:,J-1)
+C   (A_J is diagonal -> row-scaling of F_{J-1})
+        DO K2 = 1, INZ
+          DO K1 = 1, INZ
+            D_WORK(K1, K2) = D_WORK(K1, K2)
+     &        - A_PENTA(J, K1) * F_WORK(K1, K2, J-1)
+          END DO
+        END DO
+
+        CALL GAUSS_NOPIVOT(D_WORK, INZ)
+
+C F_WORK(:,:,J) = D_WORK^{-1} * diag(C_PENTA(J,:))
+        DO K2 = 0, INZ+1
+          DO K1 = 0, INZ+1
+            F_WORK(K1, K2, J) = 0.d0
+          END DO
+        END DO
+        DO K = 1, INZ
+          F_WORK(K, K, J) = C_PENTA(J, K)
+        END DO
+        CALL GAUSS_SOLVE_R(D_WORK, F_WORK(0,0,J), INZ, INZ)
+
+C G_PENTA(J,:) <- D_WORK^{-1} * (G_PENTA(J,:) - A_PENTA(J,:) * G_PENTA(J-1,:))
+        DO K = 0, INZ+1
+          GTMP(K) = G_PENTA(J, K) - A_PENTA(J, K) * G_PENTA(J-1, K)
+        END DO
+        CALL GAUSS_SOLVE_C(D_WORK, GTMP, INZ)
+        DO K = 0, INZ+1
+          G_PENTA(J, K) = GTMP(K)
+        END DO
+      END DO
+
+C Send (F_block, G'_vec) at J=INY upward to RANKY+1
+      IF (RANKY.NE.NPROCY-1) THEN
+        IDX = 0
+        DO K2 = 1, INZ
+          DO K1 = 1, INZ
+            IDX = IDX + 1
+            SBUF(IDX) = F_WORK(K1, K2, INY)
+          END DO
+        END DO
+        DO K = 1, INZ
+          IDX = IDX + 1
+          SBUF(IDX) = G_PENTA(INY, K)
+        END DO
+        CALL MPI_SEND(SBUF, MSGSIZE, MPI_DOUBLE_COMPLEX, RANKY+1, 15
+     &               ,MPI_COMM_Y, ierror)
+      END IF
+
+      RETURN
+      END
+
+
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+      SUBROUTINE BLOCK_TDMA_B_COMP_DUCT_Y_MPI(INY, INZ)
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+C Block-Thomas BACKWARD sweep in Y for the REM_DIV_DUCT4 pentadiagonal solver.
+C Operates on /PENTA_VARS/ arrays from header. Pipeline mirrors
+C TDMA_B_COMP_DUCT_Y_MPI: receive x_{INY+1} from rank above, back-substitute
+C from J=INY down to J=1, then send x_2 to rank below.
+C Per neighbor exchange: INZ complex doubles (the solution vector).
+C On entry, G_PENTA(J,:) holds G'_J (output of forward sweep), F_WORK(:,:,J)
+C holds F_J. On exit, G_PENTA(J,:) holds the solution x_J.
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+      INCLUDE 'header'
+
+      INTEGER INY, INZ
+      INTEGER J, K, K1, K2
+      COMPLEX*16 XNEXT(0:NZ+1)
+      COMPLEX*16 GACC(0:NZ+1)
+
+C Receive x_{INY+1} from RANKY+1 if it exists; otherwise INY is the last
+C global block-row, so x_{INY} = G'_{INY} already in G_PENTA(INY,:) and
+C no F * x_{INY+1} correction is needed.
+      IF (RANKY.NE.NPROCY-1) THEN
+        CALL MPI_RECV(XNEXT, INZ, MPI_DOUBLE_COMPLEX, RANKY+1, 16
+     &               ,MPI_COMM_Y, status, ierror)
+C Apply at J=INY: G_PENTA(INY,:) <- G_PENTA(INY,:) - F_WORK(:,:,INY) * XNEXT
+        DO K = 1, INZ
+          GACC(K) = G_PENTA(INY, K)
+        END DO
+        DO K2 = 1, INZ
+          DO K1 = 1, INZ
+            GACC(K1) = GACC(K1) - F_WORK(K1, K2, INY) * XNEXT(K2)
+          END DO
+        END DO
+        DO K = 1, INZ
+          G_PENTA(INY, K) = GACC(K)
+        END DO
+      END IF
+
+C For J = INY-1, ..., 1 do x_J = G'_J - F_J * x_{J+1}
+      DO J = INY-1, 1, -1
+        DO K = 1, INZ
+          XNEXT(K) = G_PENTA(J+1, K)
+        END DO
+        DO K = 1, INZ
+          GACC(K) = G_PENTA(J, K)
+        END DO
+        DO K2 = 1, INZ
+          DO K1 = 1, INZ
+            GACC(K1) = GACC(K1) - F_WORK(K1, K2, J) * XNEXT(K2)
+          END DO
+        END DO
+        DO K = 1, INZ
+          G_PENTA(J, K) = GACC(K)
+        END DO
+      END DO
+
+C Send x_2 down to RANKY-1 (mirrors scalar TDMA_B which sends G(2,K))
+      IF (RANKY.NE.0) THEN
+        DO K = 1, INZ
+          XNEXT(K) = G_PENTA(2, K)
+        END DO
+        CALL MPI_SEND(XNEXT, INZ, MPI_DOUBLE_COMPLEX, RANKY-1, 16
+     &               ,MPI_COMM_Y, ierror)
+      END IF
+
+      RETURN
+      END
+
+
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
       SUBROUTINE TDMA_F_REAL_DUCT_Z_MPI(A,B,C,G,INY,INZ)
 C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
 C Tri-Diagonal Matrix Algorithm FORWARD sweep in Z-DIRECTION. Input data is in
@@ -1289,8 +1596,8 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
 
       IF (RANKZ.NE.0) THEN
 C If we aren't the lowest process, then wait for data
-        CALL MPI_RECV(OCPACK,4*INY,MPI_DOUBLE_PRECISION,RANKY-1,14
-     &               ,MPI_COMM_Y,status,ierror)
+        CALL MPI_RECV(OCPACK,4*INY,MPI_DOUBLE_PRECISION,RANKZ-1,14
+     &               ,MPI_COMM_Z,status,ierror)
 C Unpack the data
         DO J=1,INY
           A(J,1)=OCPACK(J,1)
@@ -1324,8 +1631,8 @@ C Unpack the data
           ICPACK(J,3)=C(J,INZ)
           ICPACK(J,4)=G(J,INZ)
         END DO
-        CALL MPI_SEND(ICPACK,4*INY,MPI_DOUBLE_PRECISION,RANKY+1,14
-     &               ,MPI_COMM_Y,ierror)
+        CALL MPI_SEND(ICPACK,4*INY,MPI_DOUBLE_PRECISION,RANKZ+1,14
+     &               ,MPI_COMM_Z,ierror)
       ELSE
 ! Here, we are at the upper process, so solve one more row containing
 ! the boundary conditions
@@ -1358,8 +1665,8 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
       DO J=1,INY
         IF (RANKZ.NE.NPROCZ-1) THEN
 ! If we aren’t the highest process, then wait for data
-          CALL MPI_RECV(OCPACK,1,MPI_DOUBLE_PRECISION,RANKY+1,15
-     &                 ,MPI_COMM_Y,status,ierror)
+          CALL MPI_RECV(OCPACK,1,MPI_DOUBLE_PRECISION,RANKZ+1,15
+     &                 ,MPI_COMM_Z,status,ierror)
           G(J,INZ+1)=OCPACK(1)
         ELSE
 ! Else, if we are the highest process, compute the solution at K=INZ
@@ -1377,8 +1684,8 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
 
         IF (RANKZ.NE.0) THEN
           ICPACK(1)=G(J,2)
-          CALL MPI_SEND(ICPACK,1,MPI_DOUBLE_PRECISION,RANKY-1,15
-     &                 ,MPI_COMM_Y,ierror)
+          CALL MPI_SEND(ICPACK,1,MPI_DOUBLE_PRECISION,RANKZ-1,15
+     &                 ,MPI_COMM_Z,ierror)
         END IF
       END DO
 
@@ -1894,9 +2201,38 @@ C Initialize any constants here
 
 
 C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
-      SUBROUTINE APPLY_BC_TH_DUCT_MPI(MATL_YZ,MATD_YZ,
+      SUBROUTINE APPLY_BC_TH_DUCT_Y_MPI(MATL_YZ,MATD_YZ,
      &         MATU_YZ,VEC_YZ,N)
 C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+! BC dispatch for the Y-sweep of the duct TH ADI step.
+! Only modifies Y-boundary rows (J=0, J=1 on RANKY=0; J=NY, J=NY+1
+! on RANKY=NPROCY-1). Z-direction BCs are not enforced here; they
+! enter the Y-sweep only through the explicit TH(K-1)/TH(K+1) halo
+! reads on the RHS (handled elsewhere).
+! MATL_YZ/MATD_YZ/MATU_YZ/VEC_YZ are passed by reference; their
+! shapes come from the declarations in 'header'.
+      INCLUDE 'header'
+      INTEGER N
+
+      IF (RANKY.EQ.0) THEN
+        CALL APPLY_BC_TH_YLOWER_DUCT_Y(MATL_YZ,MATD_YZ,MATU_YZ,VEC_YZ,N)
+      ELSE IF (RANKY.EQ.NPROCY-1) THEN
+        CALL APPLY_BC_TH_YUPPER_DUCT_Y(MATL_YZ,MATD_YZ,MATU_YZ,VEC_YZ,N)
+      END IF
+
+      RETURN
+      END
+
+
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+      SUBROUTINE APPLY_BC_TH_DUCT_Z_MPI(MATL_YZ,MATD_YZ,
+     &         MATU_YZ,VEC_YZ,N)
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+! BC dispatch for the Z-sweep of the duct TH ADI step.
+! Only modifies Z-boundary rows (K=0, K=1 on RANKZ=0; K=NZP, K=NZP+1
+! on RANKZ=NPROCZ-1).
+! MATL_YZ/MATD_YZ/MATU_YZ/VEC_YZ are passed by reference; their
+! shapes come from the declarations in 'header'.
 ! This subroutine applies the boundary conditions to the
 ! scalar fields prior to the implicit solve
 ! We need to check to see which processor we are, if we are
@@ -1905,14 +2241,117 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
       INTEGER N
 
       IF (RANKZ.EQ.0) THEN
-        CALL APPLY_BC_TH_ZLOWER_DUCT(N)
+        CALL APPLY_BC_TH_ZLOWER_DUCT_Z(MATL_YZ,MATD_YZ,MATU_YZ,VEC_YZ,N)
       ELSE IF (RANKZ.EQ.NPROCZ-1) THEN
-        CALL APPLY_BC_TH_ZUPPER_DUCT(N)
+        CALL APPLY_BC_TH_ZUPPER_DUCT_Z(MATL_YZ,MATD_YZ,MATU_YZ,VEC_YZ,N)
       END IF
+
+      RETURN
+      END
+
+
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+      SUBROUTINE APPLY_BC_U1_DUCT_Y_MPI(MATL_YZ,MATD_YZ,
+     &         MATU_YZ,VEC_YZ)
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+! BC dispatch for the Y-sweep of the duct U1 ADI step.
+! U1 is cell-centered in Y -- TH-style BC convention.
+      INCLUDE 'header'
+
       IF (RANKY.EQ.0) THEN
-        CALL APPLY_BC_TH_YLOWER_DUCT(N)
+        CALL APPLY_BC_U1_YLOWER_DUCT_Y(MATL_YZ,MATD_YZ,MATU_YZ,VEC_YZ)
       ELSE IF (RANKY.EQ.NPROCY-1) THEN
-        CALL APPLY_BC_TH_YUPPER_DUCT(N)
+        CALL APPLY_BC_U1_YUPPER_DUCT_Y(MATL_YZ,MATD_YZ,MATU_YZ,VEC_YZ)
+      END IF
+
+      RETURN
+      END
+
+
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+      SUBROUTINE APPLY_BC_U1_DUCT_Z_MPI(MATL_YZ,MATD_YZ,
+     &         MATU_YZ,VEC_YZ)
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+! BC dispatch for the Z-sweep of the duct U1 ADI step.
+! U1 is cell-centered in Z -- TH-style BC convention.
+      INCLUDE 'header'
+
+      IF (RANKZ.EQ.0) THEN
+        CALL APPLY_BC_U1_ZLOWER_DUCT_Z(MATL_YZ,MATD_YZ,MATU_YZ,VEC_YZ)
+      ELSE IF (RANKZ.EQ.NPROCZ-1) THEN
+        CALL APPLY_BC_U1_ZUPPER_DUCT_Z(MATL_YZ,MATD_YZ,MATU_YZ,VEC_YZ)
+      END IF
+
+      RETURN
+      END
+
+
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+      SUBROUTINE APPLY_BC_U2_DUCT_Y_MPI(MATL_YZ,MATD_YZ,
+     &         MATU_YZ,VEC_YZ)
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+! BC dispatch for the Y-sweep of the duct U2 ADI step.
+! U2 is face-centered in Y -- channel-style staggered BC convention.
+      INCLUDE 'header'
+
+      IF (RANKY.EQ.0) THEN
+        CALL APPLY_BC_U2_YLOWER_DUCT_Y(MATL_YZ,MATD_YZ,MATU_YZ,VEC_YZ)
+      ELSE IF (RANKY.EQ.NPROCY-1) THEN
+        CALL APPLY_BC_U2_YUPPER_DUCT_Y(MATL_YZ,MATD_YZ,MATU_YZ,VEC_YZ)
+      END IF
+
+      RETURN
+      END
+
+
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+      SUBROUTINE APPLY_BC_U2_DUCT_Z_MPI(MATL_YZ,MATD_YZ,
+     &         MATU_YZ,VEC_YZ)
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+! BC dispatch for the Z-sweep of the duct U2 ADI step.
+! U2 is cell-centered in Z -- TH-style BC convention.
+      INCLUDE 'header'
+
+      IF (RANKZ.EQ.0) THEN
+        CALL APPLY_BC_U2_ZLOWER_DUCT_Z(MATL_YZ,MATD_YZ,MATU_YZ,VEC_YZ)
+      ELSE IF (RANKZ.EQ.NPROCZ-1) THEN
+        CALL APPLY_BC_U2_ZUPPER_DUCT_Z(MATL_YZ,MATD_YZ,MATU_YZ,VEC_YZ)
+      END IF
+
+      RETURN
+      END
+
+
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+      SUBROUTINE APPLY_BC_U3_DUCT_Y_MPI(MATL_YZ,MATD_YZ,
+     &         MATU_YZ,VEC_YZ)
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+! BC dispatch for the Y-sweep of the duct U3 ADI step.
+! U3 is cell-centered in Y -- TH-style BC convention.
+      INCLUDE 'header'
+
+      IF (RANKY.EQ.0) THEN
+        CALL APPLY_BC_U3_YLOWER_DUCT_Y(MATL_YZ,MATD_YZ,MATU_YZ,VEC_YZ)
+      ELSE IF (RANKY.EQ.NPROCY-1) THEN
+        CALL APPLY_BC_U3_YUPPER_DUCT_Y(MATL_YZ,MATD_YZ,MATU_YZ,VEC_YZ)
+      END IF
+
+      RETURN
+      END
+
+
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+      SUBROUTINE APPLY_BC_U3_DUCT_Z_MPI(MATL_YZ,MATD_YZ,
+     &         MATU_YZ,VEC_YZ)
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+! BC dispatch for the Z-sweep of the duct U3 ADI step.
+! U3 is face-centered in Z -- channel-style staggered BC convention.
+      INCLUDE 'header'
+
+      IF (RANKZ.EQ.0) THEN
+        CALL APPLY_BC_U3_ZLOWER_DUCT_Z(MATL_YZ,MATD_YZ,MATU_YZ,VEC_YZ)
+      ELSE IF (RANKZ.EQ.NPROCZ-1) THEN
+        CALL APPLY_BC_U3_ZUPPER_DUCT_Z(MATL_YZ,MATD_YZ,MATU_YZ,VEC_YZ)
       END IF
 
       RETURN
@@ -2132,7 +2571,7 @@ C Otherwise the matrix will be singular
             MATU_C_YZ(1,K)=0.
             VEC_C_YZ(1,K)=(0.,0.)
           ELSE
-C Use Neumann boundary conditions, dp/dz=0 at walls
+C Use Neumann boundary conditions, dp/dy=0 at walls
             MATL_C_YZ(1,K)=0.
             MATD_C_YZ(1,K)=1.
             MATU_C_YZ(1,K)=-1.
@@ -2192,6 +2631,135 @@ C Use Neumann boundary conditions, dp/dz=0 at walls
           MATU_C_YZ(NY,K)=0.
           VEC_C_YZ(NY,K)=(0.,0.)
         END DO
+      END IF
+
+      RETURN
+      END
+
+
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+      SUBROUTINE APPLY_BC_REM_DIV_DUCT6_Y_MPI(MATL_C_YZ,MATD_C_YZ,
+     &         MATU_C_YZ,VEC_C_YZ,I)
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+C Apply modal Y-boundary conditions for REM_DIV_DUCT6.
+C Z Neumann boundary conditions are handled by the DCT-I diagonalization.
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+      INCLUDE 'header'
+
+      INTEGER I,M
+
+C Lower Y wall. Pin only the global null mode: kx=0 and z-constant.
+      IF (RANKY.EQ.0) THEN
+        DO M=1,NZ
+          IF ((I.EQ.0).AND.(RANKZ.EQ.0).AND.(M.EQ.1)) THEN
+            MATL_C_YZ(1,M)=0.d0
+            MATD_C_YZ(1,M)=1.d0
+            MATU_C_YZ(1,M)=0.d0
+            VEC_C_YZ(1,M)=(0.d0,0.d0)
+          ELSE
+            MATL_C_YZ(1,M)=0.d0
+            MATD_C_YZ(1,M)=1.d0
+            MATU_C_YZ(1,M)=-1.d0
+            VEC_C_YZ(1,M)=(0.d0,0.d0)
+          END IF
+        END DO
+      END IF
+
+C Upper Y wall.
+      IF (RANKY.EQ.NPROCY-1) THEN
+        DO M=1,NZ
+          MATL_C_YZ(NY,M)=1.d0
+          MATD_C_YZ(NY,M)=-1.d0
+          MATU_C_YZ(NY,M)=0.d0
+          VEC_C_YZ(NY,M)=(0.d0,0.d0)
+        END DO
+      END IF
+
+      RETURN
+      END
+
+
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+      SUBROUTINE APPLY_BC_REM_DIV_DUCT4_MPI(I)
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+C Apply boundary conditions to the /PENTA_VARS/ block-tridiagonal system
+C for REM_DIV_DUCT4 at kx mode I.
+C
+C Z-walls (Neumann, every J on every rank):
+C   Row K=1  of B_J: phi(J,1)  - phi(J,2)    = 0  -> diag=1, super=-1, sub=0
+C   Row K=NZ of B_J: phi(J,NZ-1) - phi(J,NZ) = 0  -> sub=1, diag=-1, super=0
+C   A_J(K=1)=A_J(K=NZ)=C_J(K=1)=C_J(K=NZ)=0; G_J(K=1)=G_J(K=NZ)=0.
+C
+C Y-floor (Neumann, J=1 on RANKY=0):
+C   Block-row 1 entirely overwritten: B_1=I, A_1=0, C_1=-I, G_1=0.
+C
+C Y-ceiling (Neumann, J=NY on RANKY=NPROCY-1):
+C   Block-row NY: B_NY=-I, A_NY=I, C_NY=0, G_NY=0.
+C
+C kx=0 anchor (Dirichlet phi=0 at the J=1, K=1 corner) on
+C RANKY=0 .AND. RANKZ=0 .AND. I=0:
+C   B_1(K=1,:)=identity row, A_1(1)=C_1(1)=0, G_1(1)=0.
+C   This breaks the otherwise-singular pure-Neumann system for kx=0.
+C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
+      INCLUDE 'header'
+
+      INTEGER I, J, K
+
+C Z-walls applied to every active block-row J=1..NY: rows K=1 and K=NZ
+C of each B_J block. Halo block-rows (J=0, J=NY+1) are never consumed by
+C BLOCK_TDMA_F/B, so we don't touch them here.
+      DO J = 1, NY
+C K=1 row: phi(J,1) - phi(J,2) = 0
+        B_PENTA(J, 1, 1) = 0.d0
+        B_PENTA(J, 1, 2) = 1.d0
+        B_PENTA(J, 1, 3) = -1.d0
+        A_PENTA(J, 1)    = 0.d0
+        C_PENTA(J, 1)    = 0.d0
+        G_PENTA(J, 1)    = (0.d0, 0.d0)
+C K=NZ row: phi(J,NZ-1) - phi(J,NZ) = 0
+        B_PENTA(J, NZ, 1) = 1.d0
+        B_PENTA(J, NZ, 2) = -1.d0
+        B_PENTA(J, NZ, 3) = 0.d0
+        A_PENTA(J, NZ)    = 0.d0
+        C_PENTA(J, NZ)    = 0.d0
+        G_PENTA(J, NZ)    = (0.d0, 0.d0)
+      END DO
+
+C Y-floor (RANKY=0): replace block-row J=1 with B_1=I, A_1=0, C_1=-I, G_1=0
+      IF (RANKY.EQ.0) THEN
+        DO K = 1, NZ
+          B_PENTA(1, K, 1) = 0.d0
+          B_PENTA(1, K, 2) = 1.d0
+          B_PENTA(1, K, 3) = 0.d0
+          A_PENTA(1, K)    = 0.d0
+          C_PENTA(1, K)    = -1.d0
+          G_PENTA(1, K)    = (0.d0, 0.d0)
+        END DO
+      END IF
+
+C Y-ceiling (RANKY=NPROCY-1): replace J=NY with B_NY=-I, A_NY=I, C_NY=0, G_NY=0
+      IF (RANKY.EQ.NPROCY-1) THEN
+        DO K = 1, NZ
+          B_PENTA(NY, K, 1) = 0.d0
+          B_PENTA(NY, K, 2) = -1.d0
+          B_PENTA(NY, K, 3) = 0.d0
+          A_PENTA(NY, K)    = 1.d0
+          C_PENTA(NY, K)    = 0.d0
+          G_PENTA(NY, K)    = (0.d0, 0.d0)
+        END DO
+      END IF
+
+C kx=0 corner anchor (I=0, RANKY=0, RANKZ=0): Dirichlet phi=0 at (J=1, K=1).
+C The Y-floor block already set B_1(K=1,:) to the identity row above; here
+C we just need to zero the C_PENTA(1,1) entry (was -1) so the corner is
+C truly decoupled from J=2.
+      IF ((I.EQ.0).AND.(RANKY.EQ.0).AND.(RANKZ.EQ.0)) THEN
+        B_PENTA(1, 1, 1) = 0.d0
+        B_PENTA(1, 1, 2) = 1.d0
+        B_PENTA(1, 1, 3) = 0.d0
+        A_PENTA(1, 1)    = 0.d0
+        C_PENTA(1, 1)    = 0.d0
+        G_PENTA(1, 1)    = (0.d0, 0.d0)
       END IF
 
       RETURN

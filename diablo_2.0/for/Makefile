@@ -11,6 +11,7 @@ COMPILER = gfortran
 
 # Any desired options for the compiler (e.g. -O2, -g, etc.)
 USEROPTS = -O3 -cpp -fallow-argument-mismatch -w
+# -ffpe-trap=zero,overflow
 # USEROPTS = -cpp -O0 -g -fcheck=all -Wall -fbacktrace -Wno-unused
 # -fbacktrace -g -fbounds-check -w
 # -O0 -g -fcheck=all -Wall -fbacktrace
@@ -33,6 +34,9 @@ LES = FALSE
 
 # Option to compile with the HDF5 libarary
 HDF5 = TRUE
+
+# If NX>=NZ, physical variables declared first to avoid memory overlap
+NXGTNZ = FALSE
 # **********    END of user definitions ************
 
 ifeq ($(ARCH),ifort)
@@ -128,7 +132,15 @@ mpi_serial.o: dummy_code/mpi_serial.f header grid_def
 	$(COMPILER) $(COMPOPTS) -c dummy_code/mpi_serial.f
 endif
 
-header : header_mpi grid_def
+header : header_mpi grid_def header_global_vars
+
+.PHONY: header_global_vars
+header_global_vars:
+ifeq ($(NXGTNZ),TRUE)
+	cp header_global_vars.1 header_global_vars
+else
+	cp header_global_vars.2 header_global_vars
+endif
 
 header_mpi : grid_mpi
 

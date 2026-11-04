@@ -56,7 +56,8 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
 C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
       INCLUDE 'header'
       INCLUDE 'fftw3.f'
-      INTEGER I,J,K
+      INTEGER I,J,K,M
+      REAL*8 DZ_DCT,DZ_ERR,DZ_TOL
 
       REAL*8      V  (0:NX+1,0:NZP+1,0:NY+1)
       COMPLEX*16  VV (0:NXP ,0:NZ +1,0:NY+1)
@@ -75,6 +76,29 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
      *       1, NZP+2, NX+2, NX/2+1, V, TMP, FFTW_MEASURE)
         CALL DFFTW_PLAN_GURU_DFT_C2R(FFTW_X_TO_P_PLAN, 1, NX, 1, 1,
      *       1, NZP+2, NX/2+1, NX+2, TMP, V, FFTW_MEASURE)
+        CALL DFFTW_PLAN_R2R_1D(FFTW_Z_DCT1_PLAN, NZ,
+     &       DCT1_Z_IN, DCT1_Z_OUT, FFTW_REDFT00, FFTW_MEASURE)
+        IF (NZ.LT.2) THEN
+          IF (RANK.EQ.0) WRITE(*,*)
+     &      'ERROR: REM_DIV_DUCT6 DCT-I requires NZ >= 2'
+          STOP
+        END IF
+        DZ_DCT=(GZF(NZ)-GZF(1))/DBLE(NZ-1)
+        DZ_TOL=1.d-10*MAX(1.d0,ABS(DZ_DCT))
+        DO K=2,NZ
+          DZ_ERR=ABS((GZF(K)-GZF(K-1))-DZ_DCT)
+          IF (DZ_ERR.GT.DZ_TOL) THEN
+            IF (RANK.EQ.0) WRITE(*,*)
+     &        'ERROR: REM_DIV_DUCT6 DCT-I requires uniform GZF spacing'
+    !  &       , GZF(K), GZF(K-1), GZF(K)-GZF(K-1)
+    !  &       , DZ_DCT, DZ_ERR
+            STOP
+          END IF
+        END DO
+        DO M=1,NZ
+          DCT1_Z_LAM(M)=-4.d0/(DZ_DCT*DZ_DCT)
+     &      *SIN(0.5d0*PI*DBLE(M-1)/DBLE(NZ-1))**2
+        END DO
         IF (RANK.EQ.0) 
      &     write(*,*) 'In fft: NKX: ',NKX
       END IF
@@ -160,6 +184,78 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
 
       RETURN
       END
+
+
+C----*|--.---------.---------.---------.---------.---------.-|-------|
+      SUBROUTINE DCT1_Z_FORWARD_COMPLEX(CVEC,JROW)
+C----*|--.---------.---------.---------.---------.---------.-|-------|
+C Apply a DCT-I in Z to row JROW of a complex Y-Z array.
+C The row is strided in memory, so copy through contiguous FFTW work arrays.
+C----*|--.---------.---------.---------.---------.---------.-|-------|
+      INCLUDE 'header'
+
+      INTEGER JROW,K
+      COMPLEX*16 CVEC(0:NY+1,0:NZ+1)
+
+      DO K=1,NZ
+        DCT1_Z_IN(K)=DBLE(CVEC(JROW,K))
+      END DO
+      CALL DFFTW_EXECUTE_R2R(FFTW_Z_DCT1_PLAN,
+     &     DCT1_Z_IN,DCT1_Z_OUT)
+      DO K=1,NZ
+        CVEC(JROW,K)=DCMPLX(DCT1_Z_OUT(K),AIMAG(CVEC(JROW,K)))
+      END DO
+
+      DO K=1,NZ
+        DCT1_Z_IN(K)=AIMAG(CVEC(JROW,K))
+      END DO
+      CALL DFFTW_EXECUTE_R2R(FFTW_Z_DCT1_PLAN,
+     &     DCT1_Z_IN,DCT1_Z_OUT)
+      DO K=1,NZ
+        CVEC(JROW,K)=DCMPLX(DBLE(CVEC(JROW,K)),DCT1_Z_OUT(K))
+      END DO
+
+      RETURN
+      END
+
+
+C----*|--.---------.---------.---------.---------.---------.-|-------|
+      SUBROUTINE DCT1_Z_BACKWARD_COMPLEX(CVEC,JROW)
+C----*|--.---------.---------.---------.---------.---------.-|-------|
+C Apply the inverse DCT-I in Z to row JROW of a complex Y-Z array.
+C FFTW REDFT00 is unnormalized and self-inverse with scale 2*(NZ-1).
+C----*|--.---------.---------.---------.---------.---------.-|-------|
+      INCLUDE 'header'
+
+      INTEGER JROW,K
+      REAL*8 SCALE
+      COMPLEX*16 CVEC(0:NY+1,0:NZ+1)
+
+      SCALE=1.d0/(2.d0*DBLE(NZ-1))
+
+      DO K=1,NZ
+        DCT1_Z_IN(K)=DBLE(CVEC(JROW,K))
+      END DO
+      CALL DFFTW_EXECUTE_R2R(FFTW_Z_DCT1_PLAN,
+     &     DCT1_Z_IN,DCT1_Z_OUT)
+      DO K=1,NZ
+        CVEC(JROW,K)=DCMPLX(SCALE*DCT1_Z_OUT(K),
+     &                    AIMAG(CVEC(JROW,K)))
+      END DO
+
+      DO K=1,NZ
+        DCT1_Z_IN(K)=AIMAG(CVEC(JROW,K))
+      END DO
+      CALL DFFTW_EXECUTE_R2R(FFTW_Z_DCT1_PLAN,
+     &     DCT1_Z_IN,DCT1_Z_OUT)
+      DO K=1,NZ
+        CVEC(JROW,K)=DCMPLX(DBLE(CVEC(JROW,K)),
+     &                    SCALE*DCT1_Z_OUT(K))
+      END DO
+
+      RETURN
+      END
+
 
 C******************************************************************************|
 C-------------> The transform routines for the duct flow follow. <-------------|
@@ -270,8 +366,6 @@ c --- needs to be updated with FFTW3 and MPI
 
       RETURN
       END
-
-
 
 
 

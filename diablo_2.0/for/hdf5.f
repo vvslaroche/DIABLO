@@ -392,16 +392,22 @@ c     Dimensions in the memory and in the file
 !     on the way back we just invert the relation in order to have
 !     exact values.
 
-      blockk(1) = NX
-      blockk(3) = NZP
 
 !     Stride and count for number of rows and columns in each dimension
       stride = 1
       count  = 1
 
 !     Offset determined by the rank of a processor
+      blockk(1) = NX
       offset(1) = 0
-      offset(3) = RANKZ*NZP
+
+      IF (NUM_PER_DIR.EQ.1) THEN
+        blockk(3) = NZP
+        offset(3) = RANKZ*(NZP-1)
+      ELSE IF (NUM_PER_DIR.EQ.2) THEN
+        blockk(3) = NZP
+        offset(3) = RANKZ*NZP
+      END IF
 
       blockk(2) =  NY
       offset(2) = RANKY*(NY-1)
@@ -469,7 +475,8 @@ c     Dimensions in the memory and in the file
          case (3)
             dname="W"
          case (4:)
-            dname="TH"//CHAR(ith+45)
+            dname="TH" // CHAR(MOD(ith-3,100)/10+48)
+     &               // CHAR(MOD(ith-3,10)+48)
          end select
 
          if ((ith.le.3).or.
@@ -542,7 +549,11 @@ c     Dimensions in the memory and in the file
 !     Close dateset
          call h5sclose_f(filspace_id, error)
          call h5dclose_f(dset_id, error)
-         call fft_xz_to_fourier(P,CP,0,NY+1)
+         IF (NUM_PER_DIR.EQ.1) THEN
+           call fft_x_to_fourier(P,CP,0,NY+1)
+         ELSE IF (NUM_PER_DIR.EQ.2) THEN
+           call fft_xz_to_fourier(P,CP,0,NY+1)
+         END IF
       end if
 
 !     Close the dataspace for the memory
@@ -560,17 +571,31 @@ c     Dimensions in the memory and in the file
          CALL COURANT
       END IF
 
-      ! Convert to physical space
-      call fft_xz_to_fourier(U1,CU1,0,NY+1)
-      call fft_xz_to_fourier(U2,CU2,0,NY+1)
-      call fft_xz_to_fourier(U3,CU3,0,NY+1)
-      do ith=1,N_TH
-        if (.NOT.CREATE_NEW_TH(ith)) then
-         S1(:,:,:)=TH(:,:,:,ith)
-         call fft_xz_to_fourier(S1,CS1,0,NY+1)
-         CTH(:,:,:,ith)=CS1(:,:,:)
-        end if
-      end do
+      ! Convert to fourier space
+      IF (NUM_PER_DIR.EQ.1) THEN
+        call fft_x_to_fourier(U1,CU1,0,NY+1)
+        call fft_x_to_fourier(U2,CU2,0,NY+1)
+        call fft_x_to_fourier(U3,CU3,0,NY+1)
+        do ith=1,N_TH
+          if (.NOT.CREATE_NEW_TH(ith)) then
+           S1(:,:,:)=TH(:,:,:,ith)
+           call fft_x_to_fourier(S1,CS1,0,NY+1)
+           CTH(:,:,:,ith)=CS1(:,:,:)
+          end if
+        end do
+      ELSE IF (NUM_PER_DIR.EQ.2) THEN
+        call fft_xz_to_fourier(U1,CU1,0,NY+1)
+        call fft_xz_to_fourier(U2,CU2,0,NY+1)
+        call fft_xz_to_fourier(U3,CU3,0,NY+1)
+        do ith=1,N_TH
+          if (.NOT.CREATE_NEW_TH(ith)) then
+           S1(:,:,:)=TH(:,:,:,ith)
+           call fft_xz_to_fourier(S1,CS1,0,NY+1)
+           CTH(:,:,:,ith)=CS1(:,:,:)
+          end if
+        end do
+      END IF
+
 
       IF (USE_MPI) THEN
          CALL GHOST_CHAN_MPI

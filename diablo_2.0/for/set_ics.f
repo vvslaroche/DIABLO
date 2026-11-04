@@ -111,6 +111,17 @@ C known modes for testing
            END DO
          END DO
        END DO
+      else if (IC_TYPE.eq.12) then
+C rayleigh-taylor
+       DO J=0,NY
+         DO K=0,NZP-1
+           DO I=0,NXM
+             U1(I,K,J)=0.d0
+             U2(I,K,J)=0.d0
+             U3(I,K,J)=0.d0
+           END DO
+         END DO
+       END DO
       else
         WRITE(*,*) 'WARNING, unsupported IC_TYPE in CREATE_FLOW'
       end if
@@ -146,16 +157,16 @@ C Zero the ghost cells
       END DO
       END IF
 
-      WRITE(*,*) 'writing U2_CHECK1 on rank ', RANK  
-      FNAME='U2_CHECK1_'//char(RANK+48)//'.dat'
-      OPEN(UNIT=15,FILE=FNAME,STATUS="UNKNOWN",FORM="FORMATTED")
-      WRITE(15,151) real(U2)
-      CLOSE(15)
-      WRITE(*,*) 'writing U1_CHECK1 on rank ', RANK  
-      FNAME='U1_CHECK1_'//char(RANK+48)//'.dat'
-      OPEN(UNIT=15,FILE=FNAME,STATUS="UNKNOWN",FORM="FORMATTED")
-      WRITE(15,151) real(U1)
-      CLOSE(15)
+      ! WRITE(*,*) 'writing U2_CHECK1 on rank ', RANK  
+      ! FNAME='U2_CHECK1_'//char(RANK+48)//'.dat'
+      ! OPEN(UNIT=15,FILE=FNAME,STATUS="UNKNOWN",FORM="FORMATTED")
+      ! WRITE(15,151) real(U2)
+      ! CLOSE(15)
+      ! WRITE(*,*) 'writing U1_CHECK1 on rank ', RANK  
+      ! FNAME='U1_CHECK1_'//char(RANK+48)//'.dat'
+      ! OPEN(UNIT=15,FILE=FNAME,STATUS="UNKNOWN",FORM="FORMATTED")
+      ! WRITE(15,151) real(U1)
+      ! CLOSE(15)
 
 C Convert to Fourier space  
       CALL FFT_XZ_TO_FOURIER(U1,CU1,0,NY+1)
@@ -163,16 +174,16 @@ C Convert to Fourier space
       CALL FFT_XZ_TO_FOURIER(U3,CU3,0,NY+1)
       CALL FFT_XZ_TO_FOURIER(P,CP,0,NY+1)
 
-      WRITE(*,*) 'writing CU2_CHECK1 on rank ', RANK  
-      FNAME='CU2_CHECK1_'//char(RANK+48)//'.dat'
-      OPEN(UNIT=15,FILE=FNAME,STATUS="UNKNOWN",FORM="FORMATTED")
-      WRITE(15,151) real(CU2)
-      CLOSE(15)
-      WRITE(*,*) 'writing CU3_CHECK1 on rank ', RANK  
-      FNAME='CU3_CHECK1_'//char(RANK+48)//'.dat'
-      OPEN(UNIT=15,FILE=FNAME,STATUS="UNKNOWN",FORM="FORMATTED")
-      WRITE(15,151) real(CU3)
-      CLOSE(15)
+      ! WRITE(*,*) 'writing CU2_CHECK1 on rank ', RANK  
+      ! FNAME='CU2_CHECK1_'//char(RANK+48)//'.dat'
+      ! OPEN(UNIT=15,FILE=FNAME,STATUS="UNKNOWN",FORM="FORMATTED")
+      ! WRITE(15,151) real(CU2)
+      ! CLOSE(15)
+      ! WRITE(*,*) 'writing CU3_CHECK1 on rank ', RANK  
+      ! FNAME='CU3_CHECK1_'//char(RANK+48)//'.dat'
+      ! OPEN(UNIT=15,FILE=FNAME,STATUS="UNKNOWN",FORM="FORMATTED")
+      ! WRITE(15,151) real(CU3)
+      ! CLOSE(15)
 
 ! Optionally, add random noise in Fourier space instead
 !      DO I=0,NXP-1
@@ -226,33 +237,33 @@ C Apply Boundary conditions to velocity field
         CALL APPLY_BC_VEL_UPPER
       END IF
 
-      WRITE(*,*) 'writing CU2_CHECK2 on rank ', RANK  
-      FNAME='CU2_CHECK2_'//char(RANK+48)//'.dat'
-      OPEN(UNIT=15,FILE=FNAME,STATUS="UNKNOWN",FORM="FORMATTED")
-      WRITE(15,151) real(CU2)
-      CLOSE(15)
-      WRITE(*,*) 'writing CU3_CHECK2 on rank ', RANK  
-      FNAME='CU3_CHECK2_'//char(RANK+48)//'.dat'
-      OPEN(UNIT=15,FILE=FNAME,STATUS="UNKNOWN",FORM="FORMATTED")
-      WRITE(15,151) real(CU3)
-      CLOSE(15)
+      ! WRITE(*,*) 'writing CU2_CHECK2 on rank ', RANK  
+      ! FNAME='CU2_CHECK2_'//char(RANK+48)//'.dat'
+      ! OPEN(UNIT=15,FILE=FNAME,STATUS="UNKNOWN",FORM="FORMATTED")
+      ! WRITE(15,151) real(CU2)
+      ! CLOSE(15)
+      ! WRITE(*,*) 'writing CU3_CHECK2 on rank ', RANK  
+      ! FNAME='CU3_CHECK2_'//char(RANK+48)//'.dat'
+      ! OPEN(UNIT=15,FILE=FNAME,STATUS="UNKNOWN",FORM="FORMATTED")
+      ! WRITE(15,151) real(CU3)
+      ! CLOSE(15)
 
-      CALL FFT_XZ_TO_PHYSICAL(CU2,U2,0,NY+1)
-      CALL FFT_XZ_TO_PHYSICAL(CU1,U1,0,NY+1)
+      ! CALL FFT_XZ_TO_PHYSICAL(CU2,U2,0,NY+1)
+      ! CALL FFT_XZ_TO_PHYSICAL(CU1,U1,0,NY+1)
 
-      WRITE(*,*) 'writing U2_CHECK2 on rank ', RANK  
-      FNAME='U2_CHECK2_'//char(RANK+48)//'.dat'
-      OPEN(UNIT=15,FILE=FNAME,STATUS="UNKNOWN",FORM="FORMATTED")
-      WRITE(15,151) real(U2)
-      CLOSE(15)
-      WRITE(*,*) 'writing U1_CHECK2 on rank ', RANK  
-      FNAME='U1_CHECK2_'//char(RANK+48)//'.dat'
-      OPEN(UNIT=15,FILE=FNAME,STATUS="UNKNOWN",FORM="FORMATTED")
-      WRITE(15,151) real(U1)
-      CLOSE(15)
+      ! WRITE(*,*) 'writing U2_CHECK2 on rank ', RANK  
+      ! FNAME='U2_CHECK2_'//char(RANK+48)//'.dat'
+      ! OPEN(UNIT=15,FILE=FNAME,STATUS="UNKNOWN",FORM="FORMATTED")
+      ! WRITE(15,151) real(U2)
+      ! CLOSE(15)
+      ! WRITE(*,*) 'writing U1_CHECK2 on rank ', RANK  
+      ! FNAME='U1_CHECK2_'//char(RANK+48)//'.dat'
+      ! OPEN(UNIT=15,FILE=FNAME,STATUS="UNKNOWN",FORM="FORMATTED")
+      ! WRITE(15,151) real(U1)
+      ! CLOSE(15)
 
-      CALL FFT_XZ_TO_FOURIER(U2,CU2,0,NY+1)
-      CALL FFT_XZ_TO_FOURIER(U1,CU1,0,NY+1)
+      ! CALL FFT_XZ_TO_FOURIER(U2,CU2,0,NY+1)
+      ! CALL FFT_XZ_TO_FOURIER(U1,CU1,0,NY+1)
 
 C Remove the divergence of the velocity field
       CALL REM_DIV_CHAN
@@ -261,22 +272,22 @@ C Remove the divergence of the velocity field
         CALL GHOST_CHAN_MPI
       END IF
 
-      CALL FFT_XZ_TO_PHYSICAL(CU2,U2,0,NY+1)
-      CALL FFT_XZ_TO_PHYSICAL(CU1,U1,0,NY+1)
+      ! CALL FFT_XZ_TO_PHYSICAL(CU2,U2,0,NY+1)
+      ! CALL FFT_XZ_TO_PHYSICAL(CU1,U1,0,NY+1)
 
-      WRITE(*,*) 'writing U2_CHECK3 on rank ', RANK  
-      FNAME='U2_CHECK3_'//char(RANK+48)//'.dat'
-      OPEN(UNIT=15,FILE=FNAME,STATUS="UNKNOWN",FORM="FORMATTED")
-      WRITE(15,151) real(U2)
-      CLOSE(15)
-      WRITE(*,*) 'writing U1_CHECK3 on rank ', RANK  
-      FNAME='U1_CHECK3_'//char(RANK+48)//'.dat'
-      OPEN(UNIT=15,FILE=FNAME,STATUS="UNKNOWN",FORM="FORMATTED")
-      WRITE(15,151) real(U1)
-      CLOSE(15)
+      ! WRITE(*,*) 'writing U2_CHECK3 on rank ', RANK  
+      ! FNAME='U2_CHECK3_'//char(RANK+48)//'.dat'
+      ! OPEN(UNIT=15,FILE=FNAME,STATUS="UNKNOWN",FORM="FORMATTED")
+      ! WRITE(15,151) real(U2)
+      ! CLOSE(15)
+      ! WRITE(*,*) 'writing U1_CHECK3 on rank ', RANK  
+      ! FNAME='U1_CHECK3_'//char(RANK+48)//'.dat'
+      ! OPEN(UNIT=15,FILE=FNAME,STATUS="UNKNOWN",FORM="FORMATTED")
+      ! WRITE(15,151) real(U1)
+      ! CLOSE(15)
 
-      CALL FFT_XZ_TO_FOURIER(U2,CU2,0,NY+1)
-      CALL FFT_XZ_TO_FOURIER(U1,CU1,0,NY+1)
+      ! CALL FFT_XZ_TO_FOURIER(U2,CU2,0,NY+1)
+      ! CALL FFT_XZ_TO_FOURIER(U1,CU1,0,NY+1)
 
 C Get the pressure from the poisson equation
 !      CALL POISSON_P_CHAN
@@ -288,10 +299,10 @@ C Get the pressure from the poisson equation
 C Save various statistics to keep track of the initial condition
       CALL SAVE_STATS_CHAN(.FALSE.)
 
-      CALL MPI_BARRIER(MPI_COMM_WORLD,ierror)
-      STOP
+      ! CALL MPI_BARRIER(MPI_COMM_WORLD,ierror)
+      ! STOP
 
-151   format(F30.20)
+151   format(E40.30)
       RETURN
       END
 
@@ -363,7 +374,16 @@ C particular problem of interest
             END DO
           END DO
         END DO
-       ELSE
+      ELSE IF (IC_TYPE.eq.12) THEN
+! rayleigh-taylor
+        DO K=0,NZP-1
+          DO I=0,NXM
+            DO J=1,NY
+              TH(I,K,J,N)=-TANH(GYF(J))
+            END DO
+          END DO
+        END DO
+      ELSE
         WRITE(*,*) 'WARNING, unsupported IC_TYPE in CREATE_TH'
         END IF
 
@@ -554,12 +574,34 @@ C Parabolic profile for laminar closed channel flow
             END DO
           END DO
         END DO
+      ELSE IF (IC_TYPE.eq.1) THEN
+! ALL ZEROS
+        DO J=0,NY+1
+          DO K=0,NZP+1
+            DO I=0,NXM
+              U1(I,K,J)=0.d0
+              U2(I,K,J)=0.d0
+              U3(I,K,J)=0.d0
+            END DO
+          END DO
+        END DO
       ELSE IF (IC_TYPE.eq.3) THEN
 C Tanh shear layer
         DO J=0,NY
           DO K=0,NZP+1
             DO I=0,NXM
               U1(I,K,J)=TANH(GYF(J))
+              U2(I,K,J)=0.d0
+              U3(I,K,J)=0.d0
+            END DO
+          END DO
+        END DO
+      ELSE IF (IC_TYPE.eq.8) THEN
+C mixed neumann dirichlet boundary conditions
+        DO J=0,NY+1
+          DO K=0,NZP+1
+            DO I=0,NXM
+              U1(I,K,J)=0.d0
               U2(I,K,J)=0.d0
               U3(I,K,J)=0.d0
             END DO
@@ -584,6 +626,39 @@ C known modes for testing
     !  &                *COS(2.0*PI*GZP(K)/LZ)
               ! U2(I,K,J)=GYF(J)/LY +1.0
               ! U3(I,K,J)=GZFP(K)/LZ
+            END DO
+          END DO
+        END DO
+      ELSE IF (IC_TYPE.eq.10) THEN
+C impulsively started Couette flow
+        DO J=0,NY+1
+          DO K=0,NZP+1
+            DO I=0,NXM
+              U1(I,K,J)=0.01*(GYF(J)+0.5*LY)/LY
+              U2(I,K,J)=0.d0
+              U3(I,K,J)=0.d0
+            END DO
+          END DO
+        END DO
+      ELSE IF ((IC_TYPE.eq.11).or.(IC_TYPE.eq.13)) THEN
+C gravity current
+        DO J=0,NY+1
+          DO K=0,NZP+1
+            DO I=0,NXM
+              U1(I,K,J)=0.d0
+              U2(I,K,J)=0.d0
+              U3(I,K,J)=0.d0
+            END DO
+          END DO
+        END DO
+      ELSE IF (IC_TYPE.eq.12) THEN
+C rayleigh-taylor
+        DO J=0,NY+1
+          DO K=0,NZP+1
+            DO I=0,NXM
+              U1(I,K,J)=0.d0
+              U2(I,K,J)=0.d0
+              U3(I,K,J)=0.d0
             END DO
           END DO
         END DO
@@ -634,16 +709,16 @@ C Zero the ghost cells
         END DO
       END IF
       ! output code if needed
-      WRITE(*,*) 'writing U2_CHECK1 on rank ', RANK  
-      FNAME='U2_CHECK1_'//char(RANK+48)//'.dat'
-      OPEN(UNIT=15,FILE=FNAME,STATUS="UNKNOWN",FORM="FORMATTED")
-      WRITE(15,151) real(U2)
-      CLOSE(15)
-      WRITE(*,*) 'writing U3_CHECK1 on rank ', RANK  
-      FNAME='U3_CHECK1_'//char(RANK+48)//'.dat'
-      OPEN(UNIT=15,FILE=FNAME,STATUS="UNKNOWN",FORM="FORMATTED")
-      WRITE(15,151) real(U3)
-      CLOSE(15)
+      ! WRITE(*,*) 'writing U2_CHECK1 on rank ', RANK  
+      ! FNAME='U2_CHECK1_'//char(RANK+48)//'.dat'
+      ! OPEN(UNIT=15,FILE=FNAME,STATUS="UNKNOWN",FORM="FORMATTED")
+      ! WRITE(15,151) real(U2)
+      ! CLOSE(15)
+      ! WRITE(*,*) 'writing U3_CHECK1 on rank ', RANK  
+      ! FNAME='U3_CHECK1_'//char(RANK+48)//'.dat'
+      ! OPEN(UNIT=15,FILE=FNAME,STATUS="UNKNOWN",FORM="FORMATTED")
+      ! WRITE(15,151) real(U3)
+      ! CLOSE(15)
 
 C Convert to Fourier space  
       CALL FFT_X_TO_FOURIER(U1,CU1,0,NY+1)
@@ -651,17 +726,17 @@ C Convert to Fourier space
       CALL FFT_X_TO_FOURIER(U3,CU3,0,NY+1)
       CALL FFT_X_TO_FOURIER(P,CP,0,NY+1)
 
-      WRITE(*,*) 'writing CU2_CHECK1 on rank ', RANK  
-      FNAME='CU2_CHECK1_'//char(RANK+48)//'.dat'
-      OPEN(UNIT=15,FILE=FNAME,STATUS="UNKNOWN",FORM="FORMATTED")
-      WRITE(15,151) real(CU2)
-      CLOSE(15)
+      ! WRITE(*,*) 'writing CU2_CHECK1 on rank ', RANK  
+      ! FNAME='CU2_CHECK1_'//char(RANK+48)//'.dat'
+      ! OPEN(UNIT=15,FILE=FNAME,STATUS="UNKNOWN",FORM="FORMATTED")
+      ! WRITE(15,151) real(CU2)
+      ! CLOSE(15)
 
-      WRITE(*,*) 'writing CU3_CHECK1 on rank ', RANK  
-      FNAME='CU3_CHECK1_'//char(RANK+48)//'.dat'
-      OPEN(UNIT=15,FILE=FNAME,STATUS="UNKNOWN",FORM="FORMATTED")
-      WRITE(15,151) real(CU3)
-      CLOSE(15)
+      ! WRITE(*,*) 'writing CU3_CHECK1 on rank ', RANK  
+      ! FNAME='CU3_CHECK1_'//char(RANK+48)//'.dat'
+      ! OPEN(UNIT=15,FILE=FNAME,STATUS="UNKNOWN",FORM="FORMATTED")
+      ! WRITE(15,151) real(CU3)
+      ! CLOSE(15)
 
 
 
@@ -680,31 +755,44 @@ C Apply Boundary conditions to velocity field
         CALL APPLY_BC_VEL_YUPPER_DUCT
       END IF
 
-      WRITE(*,*) 'writing CU2_CHECK2 on rank ', RANK  
-      FNAME='CU2_CHECK2_'//char(RANK+48)//'.dat'
-      OPEN(UNIT=15,FILE=FNAME,STATUS="UNKNOWN",FORM="FORMATTED")
-      WRITE(15,151) real(CU2)
-      CLOSE(15)
-      WRITE(*,*) 'writing CU3_CHECK2 on rank ', RANK  
-      FNAME='CU3_CHECK2_'//char(RANK+48)//'.dat'
-      OPEN(UNIT=15,FILE=FNAME,STATUS="UNKNOWN",FORM="FORMATTED")
-      WRITE(15,151) real(CU3)
-      CLOSE(15)
+      ! WRITE(*,*) 'writing CU2_CHECK2 on rank ', RANK  
+      ! FNAME='CU2_CHECK2_'//char(RANK+48)//'.dat'
+      ! OPEN(UNIT=15,FILE=FNAME,STATUS="UNKNOWN",FORM="FORMATTED")
+      ! WRITE(15,151) real(CU2)
+      ! CLOSE(15)
+      ! WRITE(*,*) 'writing CU3_CHECK2 on rank ', RANK  
+      ! FNAME='CU3_CHECK2_'//char(RANK+48)//'.dat'
+      ! OPEN(UNIT=15,FILE=FNAME,STATUS="UNKNOWN",FORM="FORMATTED")
+      ! WRITE(15,151) real(CU3)
+      ! CLOSE(15)
 
 
 C Remove the divergence of the velocity field
-      CALL REM_DIV_DUCT
+      CALL REM_DIV_DUCT6
 
-      WRITE(*,*) 'writing CU2_CHECK3 on rank ', RANK  
-      FNAME='CU2_CHECK3_'//char(RANK+48)//'.dat'
-      OPEN(UNIT=15,FILE=FNAME,STATUS="UNKNOWN",FORM="FORMATTED")
-      WRITE(15,151) real(CU2)
-      CLOSE(15)
-      WRITE(*,*) 'writing CU3_CHECK3 on rank ', RANK  
-      FNAME='CU3_CHECK3_'//char(RANK+48)//'.dat'
-      OPEN(UNIT=15,FILE=FNAME,STATUS="UNKNOWN",FORM="FORMATTED")
-      WRITE(15,151) real(CU3)
-      CLOSE(15)
+      ! WRITE(*,*) 'writing CU2_CHECK3 on rank ', RANK  
+      ! FNAME='CU2_CHECK3_'//char(RANK+48)//'.dat'
+      ! OPEN(UNIT=15,FILE=FNAME,STATUS="UNKNOWN",FORM="FORMATTED")
+      ! WRITE(15,151) real(CU2)
+      ! CLOSE(15)
+      ! WRITE(*,*) 'writing CU3_CHECK3 on rank ', RANK  
+      ! FNAME='CU3_CHECK3_'//char(RANK+48)//'.dat'
+      ! OPEN(UNIT=15,FILE=FNAME,STATUS="UNKNOWN",FORM="FORMATTED")
+      ! WRITE(15,151) real(CU3)
+      ! CLOSE(15)
+
+!       IF (USE_MPI) THEN
+!         CALL GHOST_DUCT_MPI
+!       END IF
+! C Apply Boundary conditions to velocity field
+!       IF (USE_MPI) THEN
+!         CALL APPLY_BC_VEL_MPI
+!       ELSE
+!         CALL APPLY_BC_VEL_ZLOWER_DUCT
+!         CALL APPLY_BC_VEL_ZUPPER_DUCT
+!         CALL APPLY_BC_VEL_YLOWER_DUCT
+!         CALL APPLY_BC_VEL_YUPPER_DUCT
+!       END IF
 
 
       ! CALL SAVE_FLOW(.FALSE.)
@@ -722,8 +810,8 @@ C Remove the divergence of the velocity field
       ! WRITE(15,151) real(CU3)
       ! CLOSE(15)
 
-      CALL MPI_BARRIER(MPI_COMM_WORLD,ierror)
-      STOP
+      ! CALL MPI_BARRIER(MPI_COMM_WORLD,ierror)
+      ! STOP
 
 
       IF (USE_MPI) THEN
@@ -735,7 +823,26 @@ C Save various statistics to keep track of the initial condition
       CALL SAVE_STATS_DUCT(.FALSE.)
 
 
-151   format(F40.20)
+      ! WRITE(*,*) 'writing CU CHECK4 on rank ', RANK  
+      ! FNAME='CU1_CHECK4_'//char(RANK+48)//'.dat'
+      ! OPEN(UNIT=15,FILE=FNAME,STATUS="UNKNOWN",FORM="FORMATTED")
+      ! WRITE(15,151) real(CU1)
+      ! CLOSE(15)
+      ! FNAME='CU2_CHECK4_'//char(RANK+48)//'.dat'
+      ! OPEN(UNIT=15,FILE=FNAME,STATUS="UNKNOWN",FORM="FORMATTED")
+      ! WRITE(15,151) real(CU2)
+      ! CLOSE(15)
+      ! FNAME='CU3_CHECK4_'//char(RANK+48)//'.dat'
+      ! OPEN(UNIT=15,FILE=FNAME,STATUS="UNKNOWN",FORM="FORMATTED")
+      ! WRITE(15,151) real(CU3)
+      ! CLOSE(15)
+      ! FNAME='CTH_CHECK4_'//char(RANK+48)//'.dat'
+      ! OPEN(UNIT=15,FILE=FNAME,STATUS="UNKNOWN",FORM="FORMATTED")
+      ! WRITE(15,151) real(CTH)
+      ! CLOSE(15)
+
+
+151   format(E40.30)
       RETURN
       END
 
@@ -762,6 +869,15 @@ C particular problem of interest
             END DO
           END DO
         END DO
+      ELSE IF (IC_TYPE.eq.1) THEN
+! ALL ZEROS
+        DO J=0,NY+1
+          DO K=0,NZP+1
+            DO I=0,NXM
+              TH(I,K,J,N)=0.d0
+            END DO
+          END DO
+        END DO
       ELSE IF ((IC_TYPE.eq.3).or.(IC_TYPE.eq.4)) then
 ! Tanh profile 
         DO K=1,NZP
@@ -771,12 +887,67 @@ C particular problem of interest
             END DO
           END DO
         END DO
+      ELSE IF (IC_TYPE.eq.8) then
+! mixed neumann dirichlet boundary conditions
+        DO K=1,NZP
+          DO I=0,NXM
+            DO J=1,NY
+              TH(I,K,J,N)=-TANH(GZFP(K)-1.0)
+            END DO
+          END DO
+        END DO
       ELSE IF (IC_TYPE.eq.9) then
 ! known modes for testing
         DO K=1,NZP
           DO I=0,NXM
             DO J=1,NY
               TH(I,K,J,N)=0.d0
+            END DO
+          END DO
+        END DO
+      ELSE IF (IC_TYPE.eq.10) then
+! impulsively started Couette flow
+        DO K=1,NZP
+          DO I=0,NXM
+            DO J=1,NY
+              TH(I,K,J,N)=0.d0
+            END DO
+          END DO
+        END DO
+      ELSE IF (IC_TYPE.eq.11) then
+! gravity current
+        DO K=1,NZP
+          DO I=0,NXM
+            DO J=1,NY
+              ! TH(I,K,J,N)=TANH(GZFP(K)-5.0)
+              TH(I,K,J,N)=
+     &          -(0.5*(1.0+TANH(GZFP(K)-55.0))
+     &               *(1.0-TANH(GYF(J)-8.0))-1.0)
+            END DO
+          END DO
+        END DO
+      ELSE IF (IC_TYPE.eq.12) THEN
+! rayleigh-taylor
+        DO K=1,NZP
+          DO I=0,NXM
+            DO J=1,NY
+              TH(I,K,J,N)=-TANH(GYF(J))
+            END DO
+          END DO
+        END DO
+      ELSE IF (IC_TYPE.eq.13) THEN
+! gravity current (sam style)
+        DO K=1,NZP
+          DO I=0,NXM
+            DO J=1,NY
+              ! TH(I,K,J,N)=(1.0+TANH(GZFP(K)-10.0))/2.0
+              IF (N.EQ.1) THEN
+                TH(I,K,J,N)=(1.0+TANH(GZFP(K)-10.0))/2.0
+              ELSEIF (N.EQ.2) THEN
+                TH(I,K,J,N)=(1.0-TANH(GZFP(K)-10.0))/2.0
+              ELSEIF (N.EQ.3) THEN
+                TH(I,K,J,N)=(1.0+TANH(GZFP(K)-10.0))/2.0
+              END IF
             END DO
           END DO
         END DO

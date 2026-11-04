@@ -1,13 +1,14 @@
 % This script shows how to load in 2D slices and make a movie
 % Run after readmean_h5.m
-LX=30;
-NX=128;
+LX=14;
+NX=384;
 x=linspace(0,LX,NX);
 
 filename=[base_dir '/movie.h5'];
 
 
-
+figure
+set(gcf,'Color','w')
 for k=1:nk
 k
   if (k<10)
@@ -26,13 +27,19 @@ A=h5read(filename,varname);
 % B=h5read('../../../../DIABLO-data/duct-chan-knownmodes-copy2/movie.h5',varname);
 
 % pcolor(x,gyf,A'-B')
+
 pcolor(x,gyf,A')
+% imagesc(A')
 % caxis([-1.5 1.5]);
 axis tight
 shading interp
 xlabel('X'), ylabel('Y')
 colormap(jet(256));
 colorbar
+ylim([-5 5])
+
+text(0.1,0.8,['t=' num2str(tii(k))],'units','normalized')
+
 M(k)=getframe(gcf);
 clf;
 end

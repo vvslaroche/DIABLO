@@ -1055,6 +1055,8 @@ C Convert velocity back to Fourier space
       do j=2,NYM
       do k=0,NZP-1
       do i=0,NXM
+        ! there is a possible typo here!!!
+      !  S1(i,k,j)=((U2(i,k,j+1)-vme(j+1))
        S1(i,k,j)=((U2(i,k,j+1)-vme(j))
      &        -(U2(i,k,j-1)-vme(j-1)))
      &            /(GY(j+1)-GY(j-1))
@@ -1233,12 +1235,17 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
       real*8 thsum(0:NY+1)
 ! These variables are used to store and write 2D slices 
       real*8 varxy(0:NXM,1:NY),varzy(0:NZP-1,1:NY),varxz(0:NXM,0:NZP-1)
-      ! real*8 varxy(0:NXM,1:NY),varzy(1:NZP,1:NY),varxz(0:NXM,0:NZP-1)
+! NOTE THAT varzy and varxz index 0:NZP-1
+! this is for consistency with channel geometry
+! which shares a zy output subroutine
+! variables in duct geometry are on 1:NZP, which is used in calculations
 ! These variable are used for HDF5 writing
       real*8 Diag(1:NY)
 
       IF (RANK.EQ.0) 
      &     WRITE(6,*) 'Saving flow statistics.'
+
+      IF (RANK.EQ.0) write(*,*) 'TIME, DELTA_T: ',TIME, DELTA_T
 
       IF (USE_MPI) THEN
         call mpi_barrier(MPI_COMM_WORLD,ierror)
@@ -1254,6 +1261,18 @@ C Apply Boundary conditions to velocity field
         CALL APPLY_BC_VEL_YLOWER_DUCT
         CALL APPLY_BC_VEL_YUPPER_DUCT
       END IF
+
+
+      IF (FINAL) THEN
+! if we are on the final time step, write to stats.h5
+
+
+
+
+      ELSE
+! ELSE for final time step
+
+
 
 ! Save CUi
       do k=0,NZ+1
@@ -1272,13 +1291,16 @@ C Apply Boundary conditions to velocity field
       wme=0.d0
       thme=0.d0
       IF (RANKZ.EQ.0) THEN
+        ! interpolate to GZ points for averaging
         DO K=2,NZ
-          ume=ume+0.5*(dble(CU1(0,K,:))+dble(CU1(0,K-1,:)))*DZ(K)
-          vme=vme+0.5*(dble(CU2(0,K,:))+dble(CU2(0,K-1,:)))*DZ(K)
+          ume=ume+(DZF(K-1)*dble(CU1(0,K,:))
+     &            +DZF(K)*dble(CU1(0,K-1,:))) /(2.0*DZ(K)) *DZ(K)
+          vme=vme+(DZF(K-1)*dble(CU2(0,K,:))
+     &            +DZF(K)*dble(CU2(0,K-1,:))) /(2.0*DZ(K)) *DZ(K)
           wme=wme+     dble(CU3(0,K,:))                    *DZ(K)
           DO N=1,N_TH
-            thme(:,N)=thme(:,N)
-     &       +0.5*(dble(CTH(0,K,:,N))+dble(CTH(0,K-1,:,N)))*DZ(K)
+            thme(:,N)=thme(:,N)+(DZF(K-1)*dble(CTH(0,K,:,N))
+     &            +DZF(K)*dble(CTH(0,K-1,:,N))) /(2.0*DZ(K)) *DZ(K)
           END DO
         END DO
         ume=ume/LZ
@@ -1300,20 +1322,112 @@ C Apply Boundary conditions to velocity field
       call fft_x_to_physical(CU2,U2,0,NY+1)
       call fft_x_to_physical(CU3,U3,0,NY+1)
 
-      ! WRITE(*,*) 'writing U2_CHECK2 on rank ', RANK  
-      ! FNAME='U2_CHECK2_'//char(RANK+48)//'.dat'
-      ! OPEN(UNIT=15,FILE=FNAME,STATUS="UNKNOWN",FORM="FORMATTED")
-      ! WRITE(15,151) real(U2)
-      ! CLOSE(15)
-      ! WRITE(*,*) 'writing U3_CHECK2 on rank ', RANK  
-      ! FNAME='U3_CHECK2_'//char(RANK+48)//'.dat'
-      ! OPEN(UNIT=15,FILE=FNAME,STATUS="UNKNOWN",FORM="FORMATTED")
-      ! WRITE(15,151) real(U3)
-      ! CLOSE(15)
-
 ! Calculate the dissipation rate
       call tkebudget_duct
       IF (LES) call tkebudget_duct_les
+
+! Get the turbulent kinetic energy at each level 
+! calculate at GYF points, and interpolate to GZ for averaging
+      do j=1,NY
+        urms(j)=0.
+        vrms(j)=0.
+        wrms(j)=0.
+        do k=2,NZP
+        do i=0,NXM 
+          urms(j)=urms(j)+ (
+     &            (DZFP(K-1)* ((U1(i,k,j)-ume(j))**2.) )
+     &       +    (DZFP(K)* ((U1(i,k-1,j)-ume(j))**2.) )
+     &         )  /(2.0*DZP(K)) *DZP(K)
+          vrms(j)=vrms(j)+ (
+     &        (DZFP(K-1)*0.5*((U2(i,k  ,j  )-vme(j  ))**2. +
+     &                       (U2(i,k  ,j+1)-vme(j+1))**2. ) )
+     &     +  (DZFP(K)  *0.5*((U2(i,k-1,j  )-vme(j  ))**2. +
+     &                       (U2(i,k-1,j+1)-vme(j+1))**2. ) )
+     &            ) /(2.0*DZP(K)) *DZP(K)
+          wrms(j)=wrms(j)+
+     &              ((U3(i,k,j)-wme(j))**2.) *DZP(K)
+        end do
+        end do
+      end do
+
+      call mpi_allreduce(mpi_in_place,urms,NY+2,MPI_DOUBLE_PRECISION,
+     &     MPI_SUM,MPI_COMM_Z,ierror)
+      call mpi_allreduce(mpi_in_place,vrms,NY+2,MPI_DOUBLE_PRECISION,
+     &     MPI_SUM,MPI_COMM_Z,ierror)
+      call mpi_allreduce(mpi_in_place,wrms,NY+2,MPI_DOUBLE_PRECISION,
+     &     MPI_SUM,MPI_COMM_Z,ierror)
+
+      do j=1,NY
+        urms(j)=sqrt(urms(j)/(LZ*float(NX)))
+        vrms(j)=sqrt(vrms(j)/(LZ*float(NX)))
+        wrms(j)=sqrt(wrms(j)/(LZ*float(NX)))
+      end do 
+
+
+! Compute the Reynolds stress and mean velocity gradient
+! Here, uv and wv are defined on the GY grid
+! uw is defined on the GYF grid
+! interpolate u and v to GZ as needed for averaging
+      do j=1,NY
+        uv(j)=0. 
+        uw(j)=0.
+        wv(j)=0.
+        do k=2,NZP
+        do i=0,NXM
+          ! interpolate u' to GY, multiply by v' (already on GY), then interpolate
+          ! u'v' to GZ and weighted average (requires division by LZ*NX)
+          uv(j)=uv(j)+ (
+     &       (DZFP(K-1) *   (
+     &            (DYF(j-1)*(U1(i,k  ,j)-ume(j))
+     &            +DYF(j)*(U1(i,k  ,j-1)-ume(j-1)))
+     &             /(2.d0*DY(J))        *(U2(i,k  ,j)-vme(j))
+     &       ) )
+     &       + (DZFP(K) *   (
+     &            (DYF(j-1)*(U1(i,k-1,j)-ume(j))
+     &            +DYF(j)*(U1(i,k-1,j-1)-ume(j-1)))
+     &             /(2.d0*DY(J))        *(U2(i,k-1,j)-vme(j))
+     &       ) )
+     &       ) /(2.0*DZP(K)) *DZP(K)
+          ! interpolate w' to GY, interpolate v' to GZ, then multiply by
+          ! v' (already on GY), then weighted average (requires division by LZ*NX)
+          wv(j)=wv(j)+
+     &         (DYF(j-1)*(U3(i,k,j  )-wme(j  ))
+     &         +DYF(j  )*(U3(i,k,j-1)-wme(j-1)))
+     &             /(2.d0*DY(J))
+     &     *   (DZFP(K-1)*(U2(i,k  ,j)-vme(j))
+     &         +DZFP(K  )*(U2(i,k-1,j)-vme(j)))
+     &             /(2.d0*DZP(K))  
+     &            *DZP(K)
+          ! multiple u' by w' (both on GYF), then interpolate u'w' to GZ,
+          ! then weighted average (requires division by LZ*NX)
+          uw(j)=uw(j)+ (
+     &       (DZFP(K-1)*  (U1(i,k  ,j)-ume(j))
+     &                  *(U3(i,k  ,j)-wme(j)))
+     &     + (DZFP(K  )*  (U1(i,k-1,j)-ume(j))
+     &                  *(U3(i,k-1,j)-wme(j)))
+     &      ) /(2.0*DZP(K)) *DZP(K)
+        end do
+        end do
+      end do
+
+      call mpi_allreduce(mpi_in_place,uv,NY+2,MPI_DOUBLE_PRECISION,
+     &     MPI_SUM,MPI_COMM_Z,ierror)
+      call mpi_allreduce(mpi_in_place,uw,NY+2,MPI_DOUBLE_PRECISION,
+     &     MPI_SUM,MPI_COMM_Z,ierror)
+      call mpi_allreduce(mpi_in_place,wv,NY+2,MPI_DOUBLE_PRECISION,
+     &     MPI_SUM,MPI_COMM_Z,ierror)
+      
+      do j=1,NY
+        uv(j)=uv(j)/(LZ*float(NX))
+        uw(j)=uw(j)/(LZ*float(NX))
+        wv(j)=wv(j)/(LZ*float(NX))
+      end do
+              
+! Get the y-derivative of the mean velocity at GY points
+      do j=1,NY
+        dudy(j)=(ume(j)-ume(j-1))/(GYF(j)-GYF(j-1))
+        dwdy(j)=(wme(j)-wme(j-1))/(GYF(j)-GYF(j-1))
+      end do
 
 ! Write to file
       FNAME='mean.h5'
@@ -1339,6 +1453,38 @@ C Apply Boundary conditions to velocity field
       Diag=wme(1:NY)
       call WriteStatH5(FNAME,gname,Diag)
 
+      gname='urms'
+      Diag=urms(1:NY)
+      call WriteStatH5(FNAME,gname,Diag)
+
+      gname='vrms'
+      Diag=vrms(1:NY)
+      call WriteStatH5(FNAME,gname,Diag)
+
+      gname='wrms'
+      Diag=wrms(1:NY)
+      call WriteStatH5(FNAME,gname,Diag)
+
+      gname='uv'
+      Diag=uv(1:NY)
+      call WriteStatH5(FNAME,gname,Diag)
+
+      gname='uw'
+      Diag=uw(1:NY)
+      call WriteStatH5(FNAME,gname,Diag)
+
+      gname='wv'
+      Diag=wv(1:NY)
+      call WriteStatH5(FNAME,gname,Diag)
+
+      gname='dudy'
+      Diag=dudy(1:NY)
+      call WriteStatH5(FNAME,gname,Diag)
+
+      gname='dwdy'
+      Diag=dwdy(1:NY)
+      call WriteStatH5(FNAME,gname,Diag)
+
       END IF
 
 ! Do over the number of passive scalars
@@ -1358,6 +1504,32 @@ C Apply Boundary conditions to velocity field
       CS1(:,:,:)=CTH(:,:,:,N)
       CALL FFT_X_TO_PHYSICAL(CS1,S1,0,NY+1)
       TH(:,:,:,N)=S1(:,:,:)
+
+
+! Compute the Reynolds stress
+      do j=1,NY
+        thsum(j)=0.
+        do k=2,NZP
+        do i=0,NXM
+          ! interpolate v to GYF and get v', them multiply th' by v',
+          ! then interpolate th'v' to GZ and 
+          ! weighted average (requires division by LZ*NX)
+          thsum(j)=thsum(j)+ (
+     &      DZFP(K-1)*  (TH(i,k  ,j,n)-thme(j,n))
+     &             *(0.5*(U2(i,k  ,j)+U2(i,k  ,j+1))
+     &              -0.5*(vme(j)+vme(j+1)))
+     &   +  DZFP(K  )*  (TH(i,k-1,j,n)-thme(j,n))
+     &             *(0.5*(U2(i,k-1,j)+U2(i,k-1,j+1))
+     &              -0.5*(vme(j)+vme(j+1)))
+     &      ) /(2.0*DZP(K)) *DZP(K)
+        end do
+        end do
+      end do
+      call mpi_allreduce(mpi_in_place,thsum,(NY+2),
+     &     MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_Z,ierror)
+      do j=1,NY
+        thv(j,n)=thsum(j)/(LZ*float(NX))
+      end do
 
 ! Write to movie file
       if (MOVIE) then
@@ -1381,8 +1553,8 @@ C Apply Boundary conditions to velocity field
          end if
          IF (RANKY.EQ.RANKYMOVIE) THEN
             do I=0,NXM
-            do J=0,NZP-1
-               varxz(i,j)=TH(i,j+1,NyMovie,n)
+            do J=1,NZP
+               varxz(i,j-1)=TH(i,j,NyMovie,n)
             end do
             end do
             GNAME='th' // CHAR(MOD(n,100)/10+48)
@@ -1393,30 +1565,54 @@ C Apply Boundary conditions to velocity field
          if (USE_MPI) then
            call mpi_barrier(MPI_COMM_WORLD,ierror)
          end if
-         do I=0,NZP-1
+         do I=1,NZP
          do J=1,NY
-            varzy(i,j)=TH(NxMovie,i+1,j,n)
+            varzy(i-1,j)=TH(NxMovie,i,j,n)
          end do
          end do
          GNAME='th' // CHAR(MOD(n,100)/10+48)
      &              // CHAR(MOD(n,10)+48) // '_zy'
          call writeHDF5_zyplane(FNAME,GNAME,varzy)
 
-         if (USE_MPI) then
-           call mpi_barrier(MPI_COMM_WORLD,ierror)
-         end if
-         do I=0,NZP-1
-         do J=1,NY
-         varzy(i,j)=0.d0
-         do K=0,NXM
-            varzy(i,j)=varzy(i,j)+TH(k,i+1,j,n)
-         end do
-         varzy(i,j)=varzy(i,j)/dble(NX)
-         end do
-         end do
-         GNAME='thxme' // CHAR(MOD(n,100)/10+48)
-     &              // CHAR(MOD(n,10)+48) // '_zy'
-         call writeHDF5_zyplane(FNAME,GNAME,varzy)
+    !      if (USE_MPI) then
+    !        call mpi_barrier(MPI_COMM_WORLD,ierror)
+    !      end if
+    !      do I=0,NZP+1
+    !      do J=0,NY+1
+    !      thxme(i,j,n)=0.d0
+    !      do K=0,NXM
+    !         thxme(i,j,n)=thxme(i,j,n)+TH(k,i,j,n)
+    !      end do
+    !      thxme(i,j,n)=thxme(i,j,n)/dble(NX)
+    !      end do
+    !      end do
+    !      do I=1,NZP
+    !      do J=1,NY
+    !      varzy(i-1,j)=thxme(i,j,n)
+    !      end do
+    !      end do
+    !      GNAME='thxme' // CHAR(MOD(n,100)/10+48)
+    !  &              // CHAR(MOD(n,10)+48) // '_zy'
+    !      call writeHDF5_zyplane(FNAME,GNAME,varzy)
+
+    !      if (USE_MPI) then
+    !        call mpi_barrier(MPI_COMM_WORLD,ierror)
+    !      end if
+    !      do I=1,NZP
+    !      do J=1,NY
+    !      varzy(i-1,j)=0.d0
+    !      do K=0,NXM
+    !         varzy(i-1,j)=varzy(i-1,j)+
+    !  &      ( DYF(j-1)*(TH(k,i,j,n)-thxme(i,j,n)) + 
+    !  &        DYF(j)*(TH(k,i,j-1,n)-thxme(i,j-1,n)) ) /(2.d0*DY(j))
+    !  &       *(U2(k,i,j)-vxme(i,j))
+    !      end do
+    !      varzy(i-1,j)=varzy(i-1,j)/dble(NX)
+    !      end do
+    !      end do
+    !      GNAME='thvxme' // CHAR(MOD(n,100)/10+48)
+    !  &              // CHAR(MOD(n,10)+48) // '_zy'
+    !      call writeHDF5_zyplane(FNAME,GNAME,varzy)
       END IF
 
 ! While buoyancy is in physical space, calculate its pdf (call separate
@@ -1442,6 +1638,12 @@ C Apply Boundary conditions to velocity field
  
         Diag=thme(1:NY,n)
         gname='thme'
+     &           //CHAR(MOD(N,100)/10+48)
+     &           //CHAR(MOD(N,10)+48)
+        call WriteStatH5(FNAME,gname,Diag)
+
+        Diag=thv(1:NY,n)
+        gname='thv'
      &           //CHAR(MOD(N,100)/10+48)
      &           //CHAR(MOD(N,10)+48)
         call WriteStatH5(FNAME,gname,Diag)
@@ -1503,8 +1705,8 @@ C If generating movie, save 2D slices
          end if
          IF (RANKY.EQ.RANKYMOVIE) THEN
             do I=0,NXM
-            do J=0,NZP-1
-               varxz(i,j)=U1(i,j+1,NyMovie)
+            do J=1,NZP
+               varxz(i,j-1)=U1(i,j,NyMovie)
             end do
             end do
             GNAME='u_xz'
@@ -1516,9 +1718,9 @@ C If generating movie, save 2D slices
          end if
          IF (RANKY.EQ.RANKYMOVIE) THEN
             do I=0,NXM
-            do J=0,NZP-1
-               varxz(i,j)=0.5*(U2(i,j+1,NyMovie)
-     &                        +U2(i,j+1,NyMovie+1))
+            do J=1,NZP
+               varxz(i,j-1)=0.5*(U2(i,j,NyMovie)
+     &                          +U2(i,j,NyMovie+1))
             end do
             end do
             GNAME='v_xz'
@@ -1530,9 +1732,9 @@ C If generating movie, save 2D slices
          end if
          IF (RANKY.EQ.RANKYMOVIE) THEN
             do I=0,NXM
-            do J=0,NZP-1
-               varxz(i,j)=0.5*(U3(i,j+1,NyMovie)
-     &                        +U3(i,j+1+1,NyMovie))
+            do J=1,NZP
+               varxz(i,j-1)=0.5*(U3(i,j,NyMovie)
+     &                          +U3(i,j+1,NyMovie))
             end do
             end do
             GNAME='w_xz'
@@ -1542,9 +1744,9 @@ C If generating movie, save 2D slices
          if (USE_MPI) then
            call mpi_barrier(MPI_COMM_WORLD,ierror)
          end if
-         do I=0,NZP-1
+         do I=1,NZP
          do J=1,NY
-            varzy(i,j)=U1(NxMovie,i+1,j)
+            varzy(i-1,j)=U1(NxMovie,i,j)
          end do
          end do
          GNAME='u_zy'
@@ -1553,10 +1755,10 @@ C If generating movie, save 2D slices
          if (USE_MPI) then
            call mpi_barrier(MPI_COMM_WORLD,ierror)
          end if
-         do I=0,NZP-1
+         do I=1,NZP
          do J=1,NY
-            varzy(i,j)=0.5*(U2(NxMovie,i+1,j)
-     &                     +U2(NxMovie,i+1,j+1))
+            varzy(i-1,j)=0.5*(U2(NxMovie,i,j)
+     &                       +U2(NxMovie,i,j+1))
          end do
          end do
          GNAME='v_zy'
@@ -1565,78 +1767,269 @@ C If generating movie, save 2D slices
          if (USE_MPI) then
            call mpi_barrier(MPI_COMM_WORLD,ierror)
          end if
-         do I=0,NZP-1
+         do I=1,NZP
          do J=1,NY
-            varzy(i,j)=0.5*(U3(NxMovie,i+1,j)
-     &                     +U3(NxMovie,i+1+1,j))
+            varzy(i-1,j)=0.5*(U3(NxMovie,i,j)
+     &                       +U3(NxMovie,i+1,j))
          end do
          end do
          GNAME='w_zy'
          call writeHDF5_zyplane(FNAME,GNAME,varzy)
 
-    !      if (USE_MPI) then
-    !        call mpi_barrier(MPI_COMM_WORLD,ierror)
-    !      end if
-    !      IF (RANKZ.EQ.0) THEN
-    !      do I=0,NZP-1
-    !      do J=1,NY
-    !         varzy(i,j)=dble(CR1(0,:,j))
-    !         varzy(i,j)=CR1(0,)0.5*(U3(NxMovie,i+1,j)
-    !  &                     +U3(NxMovie,i+1+1,j))
-    !      end do
-    !      end do
-    !      END IF
-    !      CALL MPI_BCAST(varzy,NY+2,MPI_DOUBLE_PRECISION,0,
-    !  &     MPI_COMM_Z,ierror)
-    !      GNAME='uxme_zy'
-    !      call writeHDF5_zyplane(FNAME,GNAME,varzy)
 
-         if (USE_MPI) then
-           call mpi_barrier(MPI_COMM_WORLD,ierror)
-         end if
-         do I=0,NZP-1
-         do J=1,NY
-         varzy(i,j)=0.d0
-         do K=0,NXM
-            varzy(i,j)=varzy(i,j)+U1(k,i+1,j)
-         end do
-         varzy(i,j)=varzy(i,j)/dble(NX)
-         end do
-         end do
-         GNAME='uxme_zy'
-         call writeHDF5_zyplane(FNAME,GNAME,varzy)
+! now begin calculation of tke budget terms with x-only averaging
+! generally calculated on GYF and GZF unless otherwise noted
 
-         if (USE_MPI) then
-           call mpi_barrier(MPI_COMM_WORLD,ierror)
-         end if
-         do I=0,NZP-1
-         do J=1,NY
-         varzy(i,j)=0.d0
-         do K=0,NXM
-            varzy(i,j)=varzy(i,j)+0.5*(U2(k,i+1,j)
-     &                                +U2(k,i+1,j+1))
-         end do
-         varzy(i,j)=varzy(i,j)/dble(NX)
-         end do
-         end do
-         GNAME='vxme_zy'
-         call writeHDF5_zyplane(FNAME,GNAME,varzy)
+! ! uxme,vxme,wxme,thxme will be calculated on the same grid as U,V,W,TH
+!          if (USE_MPI) then
+!            call mpi_barrier(MPI_COMM_WORLD,ierror)
+!          end if
+!          do I=0,NZP+1
+!          do J=0,NY+1
+!          uxme(i,j)=0.d0
+!          do K=0,NXM
+!             uxme(i,j)=uxme(i,j)+U1(k,i,j)
+!          end do
+!          uxme(i,j)=uxme(i,j)/dble(NX)
+!          end do
+!          end do
+!          do I=1,NZP
+!          do J=1,NY
+!          varzy(i-1,j)=uxme(i,j)
+!          end do
+!          end do
+!          GNAME='uxme_zy'
+!          call writeHDF5_zyplane(FNAME,GNAME,varzy)
 
-         if (USE_MPI) then
-           call mpi_barrier(MPI_COMM_WORLD,ierror)
-         end if
-         do I=0,NZP-1
-         do J=1,NY
-         varzy(i,j)=0.d0
-         do K=0,NXM
-            varzy(i,j)=varzy(i,j)+0.5*(U3(k,i+1,j)
-     &                                +U3(k,i+1+1,j))
-         end do
-         varzy(i,j)=varzy(i,j)/dble(NX)
-         end do
-         end do
-         GNAME='wxme_zy'
-         call writeHDF5_zyplane(FNAME,GNAME,varzy)
+!          if (USE_MPI) then
+!            call mpi_barrier(MPI_COMM_WORLD,ierror)
+!          end if
+!          do I=0,NZP+1
+!          do J=0,NY+1
+!          vxme(i,j)=0.d0
+!          do K=0,NXM
+!             vxme(i,j)=vxme(i,j)+U2(k,i,j)
+!          end do
+!          vxme(i,j)=vxme(i,j)/dble(NX)
+!          end do
+!          end do
+!          do I=1,NZP
+!          do J=1,NY
+!          varzy(i-1,j)=vxme(i,j)
+!          end do
+!          end do
+!          GNAME='vxme_zy'
+!          call writeHDF5_zyplane(FNAME,GNAME,varzy)
+
+!          if (USE_MPI) then
+!            call mpi_barrier(MPI_COMM_WORLD,ierror)
+!          end if
+!          do I=0,NZP+1
+!          do J=0,NY+1
+!          wxme(i,j)=0.d0
+!          do K=0,NXM
+!             wxme(i,j)=wxme(i,j)+U3(k,i,j)
+!          end do
+!          wxme(i,j)=wxme(i,j)/dble(NX)
+!          end do
+!          end do
+!          do I=1,NZP
+!          do J=1,NY
+!          varzy(i-1,j)=wxme(i,j)
+!          end do
+!          end do
+!          GNAME='wxme_zy'
+!          call writeHDF5_zyplane(FNAME,GNAME,varzy)
+
+! ! get rms terms on GYF, GZFP
+!          if (USE_MPI) then
+!            call mpi_barrier(MPI_COMM_WORLD,ierror)
+!          end if
+!          do I=1,NZP
+!          do J=1,NY
+!          varzy(i-1,j)=0.d0
+!          do K=0,NXM
+!             varzy(i-1,j)=varzy(i-1,j)
+!      &        +(U1(k,i,j)-uxme(i,j))**2.d0
+!          end do
+!          varzy(i-1,j)=sqrt(varzy(i-1,j)/dble(NX))
+!          end do
+!          end do
+!          GNAME='urmsxme_zy'
+!          call writeHDF5_zyplane(FNAME,GNAME,varzy)
+
+!          if (USE_MPI) then
+!            call mpi_barrier(MPI_COMM_WORLD,ierror)
+!          end if
+!          do I=1,NZP
+!          do J=1,NY
+!          varzy(i-1,j)=0.d0
+!          do K=0,NXM
+!             varzy(i-1,j)=varzy(i-1,j)
+!      &        +0.5*((U2(k,i,j  )-vxme(i,j  ))**2. +
+!      &              (U2(k,i,j+1)-vxme(i,j+1))**2. )
+!          end do
+!          varzy(i-1,j)=sqrt(varzy(i-1,j)/dble(NX))
+!          end do
+!          end do
+!          GNAME='vrmsxme_zy'
+!          call writeHDF5_zyplane(FNAME,GNAME,varzy)
+
+!          if (USE_MPI) then
+!            call mpi_barrier(MPI_COMM_WORLD,ierror)
+!          end if
+!          do I=1,NZP
+!          do J=1,NY
+!          varzy(i-1,j)=0.d0
+!          do K=0,NXM
+!             varzy(i-1,j)=varzy(i-1,j)
+!      &        +0.5*((U3(k,i  ,j)-wxme(i  ,j))**2. +
+!      &              (U3(k,i+1,j)-wxme(i+1,j))**2. )
+!          end do
+!          varzy(i-1,j)=sqrt(varzy(i-1,j)/dble(NX))
+!          end do
+!          end do
+!          GNAME='wrmsxme_zy'
+!          call writeHDF5_zyplane(FNAME,GNAME,varzy)
+
+! ! cross terms
+! ! uv on GY , GZF
+! ! wv on GY , GZ
+! ! uw on GYF, GZ
+!          if (USE_MPI) then
+!            call mpi_barrier(MPI_COMM_WORLD,ierror)
+!          end if
+!          do I=1,NZP
+!          do J=1,NY
+!          varzy(i-1,j)=0.d0
+!          do K=0,NXM
+!             varzy(i-1,j)=varzy(i-1,j)+
+!      &      ( DYF(j-1)*(U1(k,i,j)-uxme(i,j)) + 
+!      &        DYF(j)*(U1(k,i,j-1)-uxme(i,j-1)) ) /(2.d0*DY(j))
+!      &       *(U2(k,i,j)-vxme(i,j))
+!          end do
+!          varzy(i-1,j)=varzy(i-1,j)/dble(NX)
+!          end do
+!          end do
+!          GNAME='uvxme_zy'
+!          call writeHDF5_zyplane(FNAME,GNAME,varzy)
+
+!          if (USE_MPI) then
+!            call mpi_barrier(MPI_COMM_WORLD,ierror)
+!          end if
+!          do I=1,NZP
+!          do J=1,NY
+!          varzy(i-1,j)=0.d0
+!          do K=0,NXM
+!             varzy(i-1,j)=varzy(i-1,j)+
+!      &      ( DZFP(i-1)*(U1(k,i,j)-uxme(i,j)) + 
+!      &        DZFP(i)*(U1(k,i-1,j)-uxme(i-1,j)) ) /(2.d0*DZP(i))
+!      &       *(U3(k,i,j)-wxme(i,j))
+!          end do
+!          varzy(i-1,j)=varzy(i-1,j)/dble(NX)
+!          end do
+!          end do
+!          GNAME='uwxme_zy'
+!          call writeHDF5_zyplane(FNAME,GNAME,varzy)
+
+!          if (USE_MPI) then
+!            call mpi_barrier(MPI_COMM_WORLD,ierror)
+!          end if
+!          do I=1,NZP
+!          do J=1,NY
+!          varzy(i-1,j)=0.d0
+!          do K=0,NXM
+!             varzy(i-1,j)=varzy(i-1,j)+
+!      &      ( DYF(j-1)*(U3(k,i,j)-wxme(i,j)) + 
+!      &        DYF(j)*(U3(k,i,j-1)-wxme(i,j-1)) ) /(2.d0*DY(j))
+!      &     *( DZFP(i-1)*(U2(k,i,j)-vxme(i,j)) + 
+!      &        DZFP(i)*(U2(k,i-1,j)-vxme(i-1,j)) ) /(2.d0*DZP(i))
+!          end do
+!          varzy(i-1,j)=varzy(i-1,j)/dble(NX)
+!          end do
+!          end do
+!          GNAME='wvxme_zy'
+!          call writeHDF5_zyplane(FNAME,GNAME,varzy)
+
+! ! gradient terms
+! ! not really exactly on GYF/GZF ?? like in channel
+! ! dudy on GY , GZF
+! ! dudz on GYF, GZ
+! ! dvdy on GYF, GZF
+! ! dvdz on GY , GZ
+! ! dwdy on GY , GZ
+! ! dwdz on GYF, GZF
+!          if (USE_MPI) then
+!            call mpi_barrier(MPI_COMM_WORLD,ierror)
+!          end if
+!          do I=1,NZP
+!          do J=1,NY
+!             varzy(i-1,j)=(uxme(i,j)-uxme(i,j-1))
+!      &                  /(GYF(j)-GYF(j-1))
+!          end do
+!          end do
+!          GNAME='duxmedy_zy'
+!          call writeHDF5_zyplane(FNAME,GNAME,varzy)
+
+!          if (USE_MPI) then
+!            call mpi_barrier(MPI_COMM_WORLD,ierror)
+!          end if
+!          do I=1,NZP
+!          do J=1,NY
+!             varzy(i-1,j)=(uxme(i,j)-uxme(i-1,j))
+!      &                  /(GZFP(i)-GZFP(i-1))
+!          end do
+!          end do
+!          GNAME='duxmedz_zy'
+!          call writeHDF5_zyplane(FNAME,GNAME,varzy)
+
+!          if (USE_MPI) then
+!            call mpi_barrier(MPI_COMM_WORLD,ierror)
+!          end if
+!          do I=1,NZP
+!          do J=1,NY
+!             varzy(i-1,j)=(vxme(i,j)-vxme(i,j-1))
+!      &                  /(GY(j)-GY(j-1))
+!          end do
+!          end do
+!          GNAME='dvxmedy_zy'
+!          call writeHDF5_zyplane(FNAME,GNAME,varzy)
+
+!          if (USE_MPI) then
+!            call mpi_barrier(MPI_COMM_WORLD,ierror)
+!          end if
+!          do I=1,NZP
+!          do J=1,NY
+!             varzy(i-1,j)=(vxme(i-1,j)-vxme(i,j))
+!      &                  /(GZFP(i)-GZFP(i-1))
+!          end do
+!          end do
+!          GNAME='dvxmedz_zy'
+!          call writeHDF5_zyplane(FNAME,GNAME,varzy)
+
+!          if (USE_MPI) then
+!            call mpi_barrier(MPI_COMM_WORLD,ierror)
+!          end if
+!          do I=1,NZP
+!          do J=1,NY
+!             varzy(i-1,j)=(wxme(i,j)-wxme(i,j-1))
+!      &                  /(GYF(j)-GYF(j-1))
+!          end do
+!          end do
+!          GNAME='dwxmedy_zy'
+!          call writeHDF5_zyplane(FNAME,GNAME,varzy)
+
+!          if (USE_MPI) then
+!            call mpi_barrier(MPI_COMM_WORLD,ierror)
+!          end if
+!          do I=1,NZP
+!          do J=1,NY
+!             varzy(i-1,j)=(wxme(i,j)-wxme(i-1,j))
+!      &                  /(GZP(i)-GZP(i-1))
+!          end do
+!          end do
+!          GNAME='dwxmedz_zy'
+!          call writeHDF5_zyplane(FNAME,GNAME,varzy)
 
          if (USE_MPI) then
            call mpi_barrier(MPI_COMM_WORLD,ierror)
@@ -1648,6 +2041,8 @@ C Convert velocity back to Fourier space
       call fft_x_to_fourier(U2,CU2,0,NY+1)
       call fft_x_to_fourier(U3,CU3,0,NY+1)
 
+      END IF ! END IF FINAL
+
       IF (RANK.EQ.0) 
      &     write(*,*) 'done save_stats duct' 
 
@@ -1655,7 +2050,7 @@ C Convert velocity back to Fourier space
         call mpi_barrier(MPI_COMM_WORLD,ierror)
       end if
 
-151   format(F30.20)
+! 151   format(F30.20)
 
       RETURN
       END
@@ -1664,8 +2059,592 @@ C Convert velocity back to Fourier space
 
 C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
       SUBROUTINE TKEBUDGET_DUCT
+! Calculate the turbulent dissipation rate, epsilon, for duct flow
+! Note that this is actually the pseudo-dissipation (see Pope, Turb. Flows)
+! In duct: U,W on GYF and V on GY (Y staggering as in channel),
+!          U,V on GZFP and W on GZP.  Epsilon is built at (GY,GZ);
+!          horizontal Z-average uses per-process DZP weights.
 C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
       INCLUDE 'header'
+
+      character*35 FNAME
+      character*20 GNAME
+      real*8 Diag(1:NY)
+      real*8 varxy(0:NXM,1:NY),varzy(0:NZP-1,1:NY),varxz(0:NXM,0:NZP-1)
+      integer i,j,k
+      real*8 contrib
+      REAL*8 epsxme(0:NZP+1,0:NY+1)
+
+! Store the 3D dissipation rate in F1
+      F1(:,:,:)=0.d0
+
+! epsilon will be calculated on the GY grid
+      do j=1,NY
+        epsilon(j)=0.d0
+      end do
+
+! ===================================================================
+! X-derivatives: compute via CIKX*CR_n then fft_x_to_physical
+! Note: CR1,CR2,CR3 still hold the Fourier velocities (saved in
+! SAVE_STATS_DUCT before the fft_x_to_physical of CU1,CU2,CU3)
+! ===================================================================
+
+! Store du/dx in CS1
+      do j=1,NY
+      do k=1,NZ
+      do i=0,NXP-1
+        CS1(i,k,j)=CIKX(i)*CR1(i,k,j)
+      end do
+      end do
+      end do
+! Convert to physical space
+      call fft_x_to_physical(CS1,S1,0,NY+1)
+! (du/dx)^2 lives on (GYF,GZFP); bilinear-interpolate to (GY,GZ)
+      do j=1,NY
+      do k=2,NZP
+      do i=0,NXM
+        contrib=( DZFP(K-1)*(DYF(j-1)*S1(i,k  ,j  )**2.d0
+     &                     +DYF(j  )*S1(i,k  ,j-1)**2.d0)
+     &           +DZFP(K  )*(DYF(j-1)*S1(i,k-1,j  )**2.d0
+     &                     +DYF(j  )*S1(i,k-1,j-1)**2.d0) )
+     &          /(4.d0*DY(j)*DZP(K))
+        F1(i,k,j)=F1(i,k,j)+contrib
+        epsilon(j)=epsilon(j)+contrib*DZP(K)
+      end do
+      end do
+      end do
+
+! Store dv/dx in CS1
+      do j=1,NY
+      do k=1,NZ
+      do i=0,NXP-1
+        CS1(i,k,j)=CIKX(i)*CR2(i,k,j)
+      end do
+      end do
+      end do
+! Convert to physical space
+      call fft_x_to_physical(CS1,S1,0,NY+1)
+! (dv/dx)^2 lives on (GY,GZFP); Z-interpolate to GZ
+      do j=1,NY
+      do k=2,NZP
+      do i=0,NXM
+        contrib=(DZFP(K-1)*S1(i,k  ,j)**2.d0
+     &          +DZFP(K  )*S1(i,k-1,j)**2.d0)
+     &          /(2.d0*DZP(K))
+        F1(i,k,j)=F1(i,k,j)+contrib
+        epsilon(j)=epsilon(j)+contrib*DZP(K)
+      end do
+      end do
+      end do
+
+! Store dw/dx in CS1
+      do j=1,NY
+      do k=1,NZ
+      do i=0,NXP-1
+        CS1(i,k,j)=CIKX(i)*CR3(i,k,j)
+      end do
+      end do
+      end do
+! Convert to physical space
+      call fft_x_to_physical(CS1,S1,0,NY+1)
+! (dw/dx)^2 lives on (GYF,GZP); Y-interpolate to GY
+      do j=1,NY
+      do k=2,NZP
+      do i=0,NXM
+        contrib=(DYF(j-1)*S1(i,k,j  )**2.d0
+     &          +DYF(j  )*S1(i,k,j-1)**2.d0)
+     &          /(2.d0*DY(j))
+        F1(i,k,j)=F1(i,k,j)+contrib
+        epsilon(j)=epsilon(j)+contrib*DZP(K)
+      end do
+      end do
+      end do
+
+! ===================================================================
+! Y-derivatives: compute in physical space, mean-subtracted
+! ===================================================================
+
+! Compute du/dy at GY gridpoints, mean removed
+! U1 on GYF -> derivative on GY, lives on (GY,GZFP)
+      do j=1,NY
+      do k=1,NZP
+      do i=0,NXM
+        S1(i,k,j)=((U1(i,k,j  )-ume(j  ))
+     &           -(U1(i,k,j-1)-ume(j-1)))
+     &            /DY(j)
+      end do
+      end do
+      end do
+      do j=1,NY
+      do k=2,NZP
+      do i=0,NXM
+        contrib=(DZFP(K-1)*S1(i,k  ,j)**2.d0
+     &          +DZFP(K  )*S1(i,k-1,j)**2.d0)
+     &          /(2.d0*DZP(K))
+        F1(i,k,j)=F1(i,k,j)+contrib
+        epsilon(j)=epsilon(j)+contrib*DZP(K)
+      end do
+      end do
+      end do
+
+! Compute dv/dy at GY gridpoints (wide centered stencil), mean removed
+! U2 on GY -> derivative at GY using j+1/j-1, lives on (GY,GZFP)
+      do j=2,NYM
+      do k=1,NZP
+      do i=0,NXM
+        S1(i,k,j)=((U2(i,k,j+1)-vme(j+1))
+     &           -(U2(i,k,j-1)-vme(j-1)))
+     &            /(GY(j+1)-GY(j-1))
+      end do
+      end do
+      end do
+      do j=2,NYM
+      do k=2,NZP
+      do i=0,NXM
+        contrib=(DZFP(K-1)*S1(i,k  ,j)**2.d0
+     &          +DZFP(K  )*S1(i,k-1,j)**2.d0)
+     &          /(2.d0*DZP(K))
+        F1(i,k,j)=F1(i,k,j)+contrib
+        epsilon(j)=epsilon(j)+contrib*DZP(K)
+      end do
+      end do
+      end do
+
+! Compute dw/dy at GY gridpoints, mean removed
+! U3 on GYF -> derivative on GY, lives on (GY,GZP) (no interp needed)
+      do j=1,NY
+      do k=1,NZP
+      do i=0,NXM
+        S1(i,k,j)=((U3(i,k,j  )-wme(j  ))
+     &           -(U3(i,k,j-1)-wme(j-1)))
+     &            /DY(j)
+      end do
+      end do
+      end do
+      do j=1,NY
+      do k=2,NZP
+      do i=0,NXM
+        contrib=S1(i,k,j)**2.d0
+        F1(i,k,j)=F1(i,k,j)+contrib
+        epsilon(j)=epsilon(j)+contrib*DZP(K)
+      end do
+      end do
+      end do
+
+! ===================================================================
+! Z-derivatives: compute in physical space (Z is finite-difference)
+! Mean wme/ume/vme are 1D in J, so dz of mean = 0; no mean subtraction
+! ===================================================================
+
+! Compute du/dz at GZP gridpoints
+! U1 on GZFP -> derivative on GZP, lives on (GYF,GZP); Y-interp to GY
+      do j=1,NY
+      do k=2,NZP
+      do i=0,NXM
+        S1(i,k,j)=(U1(i,k,j)-U1(i,k-1,j))/DZP(K)
+      end do
+      end do
+      end do
+      do j=1,NY
+      do k=2,NZP
+      do i=0,NXM
+        contrib=(DYF(j-1)*S1(i,k,j  )**2.d0
+     &          +DYF(j  )*S1(i,k,j-1)**2.d0)
+     &          /(2.d0*DY(j))
+        F1(i,k,j)=F1(i,k,j)+contrib
+        epsilon(j)=epsilon(j)+contrib*DZP(K)
+      end do
+      end do
+      end do
+
+! Compute dv/dz at GZP gridpoints
+! U2 on GZFP -> derivative on GZP, lives on (GY,GZP) (no interp needed)
+      do j=1,NY
+      do k=2,NZP
+      do i=0,NXM
+        S1(i,k,j)=(U2(i,k,j)-U2(i,k-1,j))/DZP(K)
+      end do
+      end do
+      end do
+      do j=1,NY
+      do k=2,NZP
+      do i=0,NXM
+        contrib=S1(i,k,j)**2.d0
+        F1(i,k,j)=F1(i,k,j)+contrib
+        epsilon(j)=epsilon(j)+contrib*DZP(K)
+      end do
+      end do
+      end do
+
+! Compute dw/dz at GZ gridpoints (wide centered stencil)
+! U3 on GZP -> derivative at GZ using k+1/k-1, lives on (GYF,GZ)
+! Y-interp to GY; integration restricted to k=2..NZP-1
+      do j=1,NY
+      do k=2,NZP-1
+      do i=0,NXM
+        S1(i,k,j)=(U3(i,k+1,j)-U3(i,k-1,j))
+     &           /(GZP(k+1)-GZP(k-1))
+      end do
+      end do
+      end do
+      do j=1,NY
+      do k=2,NZP-1
+      do i=0,NXM
+        contrib=(DYF(j-1)*S1(i,k,j  )**2.d0
+     &          +DYF(j  )*S1(i,k,j-1)**2.d0)
+     &          /(2.d0*DY(j))
+        F1(i,k,j)=F1(i,k,j)+contrib
+        epsilon(j)=epsilon(j)+contrib*DZP(K)
+      end do
+      end do
+      end do
+
+! ===================================================================
+! Finalize: scale by NU, divide horizontal average by LZ*NX,
+! and reduce over MPI_COMM_Z
+! ===================================================================
+      do j=1,NY
+        epsilon(j)=NU*epsilon(j)/(LZ*dble(NX))
+      end do
+      F1=NU*F1
+      call mpi_allreduce(mpi_in_place,epsilon,NY+2,MPI_DOUBLE_PRECISION,
+     &     MPI_SUM,MPI_COMM_Z,ierror)
+
+
+
+
+
+! ! ===================================================================
+! ! calculate epsilon based on x-mean: epsxme
+! ! calculate epsxme on GY, GZ
+! ! ===================================================================
+!       do j=0,NY+1
+!       do k=0,NZP+1
+!         epsxme(k,j) = 0.d0
+!       end do
+!       end do
+
+! ! Compute x-means for the mean-subtracted Y and Z derivative terms
+!       do j=0,NY+1
+!       do k=0,NZP+1
+!         uxme(k,j)=0.d0
+!         vxme(k,j)=0.d0
+!         wxme(k,j)=0.d0
+!         do i=0,NXM
+!           uxme(k,j)=uxme(k,j)+U1(i,k,j)
+!           vxme(k,j)=vxme(k,j)+U2(i,k,j)
+!           wxme(k,j)=wxme(k,j)+U3(i,k,j)
+!         end do
+!         uxme(k,j)=uxme(k,j)/dble(NX)
+!         vxme(k,j)=vxme(k,j)/dble(NX)
+!         wxme(k,j)=wxme(k,j)/dble(NX)
+!       end do
+!       end do
+
+! ! ===================================================================
+! ! X-derivatives: compute in fourier space, no mean subtraction
+! ! ===================================================================
+! ! Store du/dx in CS1
+!       do j=0,NY+1
+!       do k=0,NZ+1
+!       do i=0,NXP-1
+!         CS1(i,k,j)=CIKX(i)*CR1(i,k,j)
+!       end do
+!       end do
+!       end do
+! ! Convert to physical space
+!       call fft_x_to_physical(CS1,S1,0,NY+1)
+! ! (du/dx)^2 lives on (GYF,GZFP); bilinear-interpolate to (GY,GZ)
+!       do j=1,NY
+!       do k=1,NZP
+!       do i=0,NXM
+!         contrib=( DZFP(K-1)*(DYF(j-1)*S1(i,k  ,j  )**2.d0
+!      &                     +DYF(j  )*S1(i,k  ,j-1)**2.d0)
+!      &           +DZFP(K  )*(DYF(j-1)*S1(i,k-1,j  )**2.d0
+!      &                     +DYF(j  )*S1(i,k-1,j-1)**2.d0) )
+!      &          /(4.d0*DY(j)*DZP(K))
+!         epsxme(k,j)=epsxme(k,j)+contrib/dble(NX)
+!       end do
+!       end do
+!       end do
+
+! ! Store dv/dx in CS1
+!       do j=0,NY+1
+!       do k=0,NZ+1
+!       do i=0,NXP-1
+!         CS1(i,k,j)=CIKX(i)*CR2(i,k,j)
+!       end do
+!       end do
+!       end do
+! ! Convert to physical space
+!       call fft_x_to_physical(CS1,S1,0,NY+1)
+! ! (dv/dx)^2 lives on (GY,GZFP); Z-interpolate to GZ
+!       do j=1,NY
+!       do k=1,NZP
+!       do i=0,NXM
+!         contrib=(DZFP(K-1)*S1(i,k  ,j)**2.d0
+!      &          +DZFP(K  )*S1(i,k-1,j)**2.d0)
+!      &          /(2.d0*DZP(K))
+!         epsxme(k,j)=epsxme(k,j)+contrib/dble(NX)
+!       end do
+!       end do
+!       end do
+
+! ! Store dw/dx in CS1
+!       do j=0,NY+1
+!       do k=0,NZ+1
+!       do i=0,NXP-1
+!         CS1(i,k,j)=CIKX(i)*CR3(i,k,j)
+!       end do
+!       end do
+!       end do
+! ! Convert to physical space
+!       call fft_x_to_physical(CS1,S1,0,NY+1)
+! ! (dw/dx)^2 lives on (GYF,GZP); Y-interpolate to GY
+!       do j=1,NY
+!       do k=1,NZP
+!       do i=0,NXM
+!         contrib=(DYF(j-1)*S1(i,k,j  )**2.d0
+!      &          +DYF(j  )*S1(i,k,j-1)**2.d0)
+!      &          /(2.d0*DY(j))
+!         epsxme(k,j)=epsxme(k,j)+contrib/dble(NX)
+!       end do
+!       end do
+!       end do
+
+! ! ===================================================================
+! ! Y-derivatives: compute in physical space, mean-subtracted
+! ! ===================================================================
+! ! Compute du'/dy at GY gridpoints
+! ! U1 on GYF -> derivative on GY, lives on (GY,GZFP)
+!       do j=1,NY
+!       do k=0,NZP
+!       do i=0,NXM
+!         S1(i,k,j)=((U1(i,k,j  )-uxme(k,j  ))
+!      &           -(U1(i,k,j-1)-uxme(k,j-1)))
+!      &            /DY(j)
+!       end do
+!       end do
+!       end do
+!       do j=1,NY
+!       do k=1,NZP
+!       do i=0,NXM
+!         contrib=(DZFP(K-1)*S1(i,k  ,j)**2.d0
+!      &          +DZFP(K  )*S1(i,k-1,j)**2.d0)
+!      &          /(2.d0*DZP(K))
+!         epsxme(k,j)=epsxme(k,j)+contrib/dble(NX)
+!       end do
+!       end do
+!       end do
+
+! ! Compute dv'/dy at GY gridpoints
+! ! U2 on GY -> derivative at GY using j+1/j-1, lives on (GY,GZFP)
+!       do k=0,NZP
+!       do i=0,NXM
+!         S1(i,k,1)=((U2(i,k,2)-vxme(k,2))
+!      &             -(U2(i,k,1)-vxme(k,1)))/(GY(2)-GY(1))
+!       end do
+!       do j=2,NYM
+!       do i=0,NXM
+!         S1(i,k,j)=((U2(i,k,j+1)-vxme(k,j+1))
+!      &           -(U2(i,k,j-1)-vxme(k,j-1)))
+!      &            /(GY(j+1)-GY(j-1))
+!       end do
+!       end do
+!       do i=0,NXM
+!         S1(i,k,NY)=((U2(i,k,NY  )-vxme(k,NY  ))
+!      &              -(U2(i,k,NY-1)-vxme(k,NY-1)))
+!      &              /(GY(NY)-GY(NY-1))
+!       end do
+!       end do
+!       do j=1,NY
+!       do k=1,NZP
+!       do i=0,NXM
+!         contrib=(DZFP(K-1)*S1(i,k  ,j)**2.d0
+!      &          +DZFP(K  )*S1(i,k-1,j)**2.d0)
+!      &          /(2.d0*DZP(K))
+!         epsxme(k,j)=epsxme(k,j)+contrib/dble(NX)
+!       end do
+!       end do
+!       end do
+
+! ! Compute dw'/dy at GY gridpoints
+! ! U3 on GYF -> derivative on GY, lives on (GY,GZP)
+!       do j=1,NY
+!       do k=1,NZP
+!       do i=0,NXM
+!         S1(i,k,j)=((U3(i,k,j  )-wxme(k,j  ))
+!      &           -(U3(i,k,j-1)-wxme(k,j-1)))
+!      &            /DY(j)
+!       end do
+!       end do
+!       end do
+!       do j=1,NY
+!       do k=1,NZP
+!       do i=0,NXM
+!         contrib=S1(i,k,j)**2.d0
+!         epsxme(k,j)=epsxme(k,j)+contrib/dble(NX)
+!       end do
+!       end do
+!       end do
+
+! ! ===================================================================
+! ! Z-derivatives: compute in physical space, mean-subtracted
+! ! ===================================================================
+! ! Compute du'/dz at GZP gridpoints
+! ! U1 on GZFP -> derivative on GZP, lives on (GYF,GZP)
+!       do j=0,NY
+!       do k=1,NZP
+!       do i=0,NXM
+!         S1(i,k,j)=((U1(i,k  ,j)-uxme(k  ,j))
+!      &           -(U1(i,k-1,j)-uxme(k-1,j)))
+!      &            /DZP(K)
+!       end do
+!       end do
+!       end do
+!       do j=1,NY
+!       do k=1,NZP
+!       do i=0,NXM
+!         contrib=(DYF(j-1)*S1(i,k,j  )**2.d0
+!      &          +DYF(j  )*S1(i,k,j-1)**2.d0)
+!      &          /(2.d0*DY(j))
+!         epsxme(k,j)=epsxme(k,j)+contrib/dble(NX)
+!       end do
+!       end do
+!       end do
+
+! ! Compute dv'/dz at GZP gridpoints
+! ! U2 on GZFP -> derivative on GZP, lives on (GY,GZP)
+!       do j=1,NY
+!       do k=1,NZP
+!       do i=0,NXM
+!         S1(i,k,j)=((U2(i,k  ,j)-vxme(k  ,j))
+!      &           -(U2(i,k-1,j)-vxme(k-1,j)))
+!      &            /DZP(K)
+!       end do
+!       end do
+!       end do
+!       do j=1,NY
+!       do k=1,NZP
+!       do i=0,NXM
+!         contrib=S1(i,k,j)**2.d0
+!         epsxme(k,j)=epsxme(k,j)+contrib/dble(NX)
+!       end do
+!       end do
+!       end do
+
+! ! Compute dw'/dz at GZ gridpoints
+! ! U3 on GZP -> derivative lives on (GYF,GZ)
+!       do j=0,NY
+!       do i=0,NXM
+!         S1(i,1,j)=((U3(i,2,j)-wxme(2,j))
+!      &             -(U3(i,1,j)-wxme(1,j)))/DZFP(1)
+!       end do
+!       do k=2,NZP-1
+!       do i=0,NXM
+!         S1(i,k,j)=((U3(i,k+1,j)-wxme(k+1,j))
+!      &           -(U3(i,k-1,j)-wxme(k-1,j)))
+!      &            /(GZP(k+1)-GZP(k-1))
+!       end do
+!       end do
+!       do i=0,NXM
+!         S1(i,NZP,j)=((U3(i,NZP+1,j)-wxme(NZP+1,j))
+!      &              -(U3(i,NZP  ,j)-wxme(NZP  ,j)))/DZFP(NZP)
+!       end do
+!       end do
+!       do j=1,NY
+!       do k=1,NZP
+!       do i=0,NXM
+!         contrib=(DYF(j-1)*S1(i,k,j  )**2.d0
+!      &          +DYF(j  )*S1(i,k,j-1)**2.d0)
+!      &          /(2.d0*DY(j))
+!         epsxme(k,j)=epsxme(k,j)+contrib/dble(NX)
+!       end do
+!       end do
+!       end do
+
+!       do j=1,NY
+!       do k=1,NZP
+!         epsxme(k,j)=NU*epsxme(k,j)
+!       end do
+!       end do
+
+
+
+
+
+
+
+#ifdef HDF5
+      FNAME='tke.h5'
+
+      gname='time'
+      call WriteHDF5_real(FNAME,gname,TIME)
+
+      IF (RANKZ.eq.0) THEN
+        gname='gy'
+        Diag=gy(1:NY)
+        call WriteStatH5(FNAME,gname,Diag)
+
+        gname='epsilon'
+        Diag=epsilon(1:NY)
+        call WriteStatH5(FNAME,gname,Diag)
+      END IF
+
+      if (MOVIE) then
+         FNAME='movie.h5'
+         if (USE_MPI) then
+           call mpi_barrier(MPI_COMM_WORLD,ierror)
+         end if
+         IF (RANKZ.EQ.RANKZMOVIE) THEN
+            do I=0,NXM
+            do J=1,NY
+               varxy(i,j)=F1(i,NzMovie,j)
+            end do
+            end do
+            GNAME='epsilon_xy'
+            call writeHDF5_xyplane(FNAME,GNAME,varxy)
+         END IF
+         if (USE_MPI) then
+           call mpi_barrier(MPI_COMM_WORLD,ierror)
+         end if
+         IF (RANKY.EQ.RANKYMOVIE) THEN
+            do I=0,NXM
+            do J=1,NZP
+               varxz(i,j-1)=F1(i,j,NyMovie)
+            end do
+            end do
+            GNAME='epsilon_xz'
+            call writeHDF5_xzplane(FNAME,GNAME,varxz)
+         END IF
+         if (USE_MPI) then
+           call mpi_barrier(MPI_COMM_WORLD,ierror)
+         end if
+         do I=1,NZP
+         do J=1,NY
+            varzy(i-1,j)=F1(NxMovie,i,j)
+         end do
+         end do
+         GNAME='epsilon_zy'
+         call writeHDF5_zyplane(FNAME,GNAME,varzy)
+
+        !  if (USE_MPI) then
+        !    call mpi_barrier(MPI_COMM_WORLD,ierror)
+        !  end if
+        !  do I=1,NZP
+        !  do J=1,NY
+        !     varzy(i-1,j)=epsxme(i,j)
+        !  end do
+        !  end do
+        !  GNAME='epsxme_zy'
+        !  call writeHDF5_zyplane(FNAME,GNAME,varzy)
+
+       END IF
+
+#else
+! Here we aren't using HDF5, so write to a text file
+
+#endif
 
       RETURN
       END

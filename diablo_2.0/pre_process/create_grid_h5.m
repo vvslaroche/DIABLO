@@ -10,6 +10,7 @@
 %     G grid locations
 %   3 Stretch both GF and G so that GF(0) and GF(N) now correspond
 %     to the upper and lower walls.
+clear
 
 % Specify the number of finite difference dimensions
 disp('1) channel flow (finite difference in Y)');
@@ -25,6 +26,9 @@ for i=1:NUM_FD_DIR
      disp('1) High resolution at both ends (tanh stretching function)');
      disp('2) High resolution in center (tanh stretching function)');
      disp('3) High resolution at both ends (starting at 0)');
+     disp('4) Evenly spaced (starting at 0)');
+     disp('5) High resolution at one end (starting at 0, high res @ LY)');
+     disp('6) High resolution at one end (starting at 0, high res @ 0)');
      GRID_TYPE=input('Select a grid type: ');
     
     % Set the dimensions of the grid 
@@ -51,6 +55,21 @@ for i=1:NUM_FD_DIR
       % Closed Channel
       for J=1:N+1
         G(J+1)=(L/2.0)*tanh(CS*((2.0*(J-1))/(N)-1.0))/tanh(CS)+L/2.0;
+      end
+    elseif (GRID_TYPE==4)
+      % Evenly Spaced
+      for J=1:N+1
+        G(J+1)=(J-1)*L/N;
+      end
+    elseif (GRID_TYPE==5)
+      % One-sided high resolution
+      for J=1:N+1
+        G(J+1)=L*tanh(CS*(((J-1))/(N))-0)/tanh(CS);
+      end
+    elseif (GRID_TYPE==6)
+      % One-sided high resolution
+      for J=1:N+1
+        G(J+1)=L*tanh(CS*(((J-1))/(N))-1.0)/tanh(CS) +L;
       end
     else
        disp('Error, entered grid type unknown');

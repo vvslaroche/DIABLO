@@ -54,6 +54,20 @@ C If we are using MPI, then Initialize the MPI Variables
          RANKZ=0
       END IF
 
+C Check variable sizing
+      ! IF (RANK.EQ.0) WRITE(6,*) LOC(U1(NX+1,NZP+1,NY+1))
+      ! IF (RANK.EQ.0) WRITE(6,*) LOC(U2(0,0,0))
+      ! IF (RANK.EQ.0) WRITE(6,*) LOC(CU1(NXP,NZ+1,NY+1))
+      ! IF (RANK.EQ.0) WRITE(6,*) LOC(CU2(0,0,0))
+      IF ((LOC(U2(0,0,0))-8).LT.LOC(U1(NX+1,NZP+1,NY+1))) THEN
+        WRITE(6,*) 'ERROR: U2 overlapping U1, set NXGTNZ=TRUE'
+        STOP
+      END IF
+      IF ((LOC(CU2(0,0,0))-16).LT.LOC(CU1(NXP,NZ+1,NY+1))) THEN
+        WRITE(6,*) 'ERROR: CU2 overlapping CU1, set NXGTNZ=FALSE'
+        STOP
+      END IF
+
 C Check compatibility
       IF ((USE_MPI).AND.(NUM_PER_DIR.eq.3)) THEN
         WRITE(6,*) 'ERROR: periodic.f isnt parallelized in MPI'
@@ -223,10 +237,10 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
       IF (RANK.EQ.0)
      &     WRITE(6,*)   'Reading flow from ',FNAME
       if (FNAME(len_trim(FNAME)-2:len_trim(FNAME)).eq.".h5") then
-         IF (NUM_PER_DIR.NE.2) THEN
+         IF ((NUM_PER_DIR.NE.2).AND.(NUM_PER_DIR.NE.1)) THEN
             IF (RANK.EQ.0) THEN
             WRITE(6,*) ' READING TO HDF5 NOT IMPLEMENTED '
-            WRITE(6,*) ' FOR NUM_PER_DIR DIFFERENT FROM 2'
+            WRITE(6,*) ' FOR NUM_PER_DIR DIFFERENT FROM 2 or 1'
             END IF
             STOP
          END IF
@@ -443,7 +457,18 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
       if (END_TIME-START_TIME.gt.TIME_LIMIT) THEN
          IF (RANK.EQ.0)
      &        write(*,*) ' STOP because of wall-time hit!'
+         IF (RANK.EQ.0)
+     &        write(*,*) END_TIME-START_TIME,TIME_LIMIT
          FLAG=.TRUE.
+      END IF
+
+      
+      IF (N_TIME_STEPS.LT.0) THEN
+      IF (TIME.GT.REAL(ABS(N_TIME_STEPS))) THEN
+         IF (RANK.EQ.0)
+     &        WRITE(*,*) ' STOP because of sim-time hit!'
+         FLAG=.TRUE.
+      END IF
       END IF
 
       INQUIRE(FILE="stop.now", EXIST=FILE_EXISTS)

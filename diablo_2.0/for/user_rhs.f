@@ -198,6 +198,45 @@ C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
       SUBROUTINE USER_RHS_DUCT_PHYSICAL
 C----*|--.---------.---------.---------.---------.---------.---------.-|-------|
       INCLUDE 'header'
+      INTEGER I,J,K,N
+      REAL*8 DA, N_SAT, DEATH
+
+      DA = 0.005
+      N_SAT = 0.1
+      DEATH = 0.1
+
+      ! for gravity current BGC
+      IF (IC_TYPE.EQ.13) THEN
+      DO N=2,N_TH
+
+      DO J=1,NY
+        DO K=1,NZP
+          DO I=0,NXM
+            IF (N.EQ.2) THEN
+    !           S1(I,K,J)= DA*TH(I,K,J,2)
+    !  &          * ( (TH(I,K,J,3)/(TH(I,K,J,3) + N_SAT)) - DEATH)
+              S1(I,K,J)= DA*TH(I,K,J,2)
+     &          * ( ((1.0-TH(I,K,J,2))/(1.0-TH(I,K,J,2) + N_SAT)) 
+     &             - DEATH)
+            ELSEIF (N.EQ.3) THEN
+              S1(I,K,J)=-DA*TH(I,K,J,2)
+     &          * ( (TH(I,K,J,3)/(TH(I,K,J,3) + N_SAT)) - DEATH)
+            END IF
+          END DO
+        END DO
+      END DO
+      ! Convert to Fourier space
+      CALL FFT_X_TO_FOURIER(S1,CS1,0,NY+1)
+      DO J=1,NY
+        DO K=1,NZ
+          DO I=0,NXP-1
+            CFTH(I,K,J,N)=CFTH(I,K,J,N)+CS1(I,K,J)
+          END DO
+        END DO
+      END DO
+
+      END DO
+      END IF
 
       RETURN
       END

@@ -4,10 +4,14 @@ clear
 
 % User settings....
 % Set the run directory
-base_dir='../../KH_test';
-base_dir='../../../../DIABLO-data/duct-chan-knownmodes';
-NY=65; % Here, NY should match the value in grid_def.all
-N_TH=1; % The number of scalars
+% base_dir='../../KH_test';
+% base_dir='../../../../DIABLO-data/duct-chan-RT-hpc-vhighres-old';
+% base_dir='../../../../DIABLO-data/duct-KH-NY504-NU1.0e-3';
+% base_dir='../../../../DIABLO-data/duct-KH-cleaning';
+% base_dir='../../../../DIABLO-data/duct-KH-NY128-NU1.0e-3-xme2';
+base_dir='../../../../DIABLO-data/duct-GC-NZ8192-NU1.0e-5-savio_02';
+NY=385; % Here, NY should match the value in grid_def.all
+N_TH=2; % The number of scalars
 Re = 1000; NU=1/Re; % Enter the Reynolds number or viscosity from input.dat
 Pr=1;   kappa=NU/Pr; % Prandtl number
 RI(1:N_TH)=0.15; % Enter the richardson number for each scalar
@@ -17,11 +21,14 @@ tstart=0;
 
 % Set the filename
 filename=[base_dir '/mean.h5'];
+tkefilename=[base_dir '/tke.h5'];
+buoyfilename=[base_dir '/buoypdf.h5'];
 
 % Read in the number of samples (store in nk)
 file_info=h5info(filename);
 att_info=file_info.Groups.Attributes;
 nk=att_info.Value
+% nk=800
 
 % Preallocate variables for speed
 time=zeros(1,nk);
@@ -32,6 +39,7 @@ dudy=zeros(NY,nk); dwdy=zeros(NY,nk); cp=zeros(NY,nk); shear=zeros(NY,nk);
 omega_x=zeros(NY,nk); omega_y=zeros(NY,nk); omega_z=zeros(NY,nk);
 thme=zeros(NY,nk,N_TH);dthdy=zeros(NY,nk,N_TH); thrms=zeros(NY,nk,N_TH);
 thv=zeros(NY,nk,N_TH); pe_diss=zeros(NY,nk,N_TH);
+epsilon=zeros(NY,nk);
 
 for k=1:nk
     if (k<10)
@@ -58,22 +66,22 @@ for k=1:nk
     vme(:,k)=h5read(filename,varname);
     varname=['/wme/' timename];
     wme(:,k)=h5read(filename,varname);
-%     varname=['/urms/' timename];            % RMS VELOCITIES
-%     urms(:,k)=h5read(filename,varname);
-%     varname=['/vrms/' timename];
-%     vrms(:,k)=h5read(filename,varname);
-%     varname=['/wrms/' timename];
-%     wrms(:,k)=h5read(filename,varname);
-%     varname=['/uv/' timename];              % REYNOLDS STRESSES
-%     uv(:,k)=h5read(filename,varname);
-%     varname=['/uw/' timename];
-%     uw(:,k)=h5read(filename,varname);
-%     varname=['/wv/' timename];
-%     wv(:,k)=h5read(filename,varname);
-%     varname=['/dudy/' timename];            % MEAN VELOCITY GRADIENTS
-%     dudy(:,k)=h5read(filename,varname);
-%     varname=['/dwdy/' timename];
-%     dwdy(:,k)=h5read(filename,varname);
+    varname=['/urms/' timename];            % RMS VELOCITIES
+    urms(:,k)=h5read(filename,varname);
+    varname=['/vrms/' timename];
+    vrms(:,k)=h5read(filename,varname);
+    varname=['/wrms/' timename];
+    wrms(:,k)=h5read(filename,varname);
+    varname=['/uv/' timename];              % REYNOLDS STRESSES
+    uv(:,k)=h5read(filename,varname);
+    varname=['/uw/' timename];
+    uw(:,k)=h5read(filename,varname);
+    varname=['/wv/' timename];
+    wv(:,k)=h5read(filename,varname);
+    varname=['/dudy/' timename];            % MEAN VELOCITY GRADIENTS
+    dudy(:,k)=h5read(filename,varname);
+    varname=['/dwdy/' timename];
+    dwdy(:,k)=h5read(filename,varname);
 %     varname=['/cp/' timename];              % MEAN PRESSURE
 %     cp(:,k)=h5read(filename,varname);
 %     varname=['/shear/' timename];           % MEAN SQUARE SHEAR
@@ -84,18 +92,20 @@ for k=1:nk
 %     omega_y(:,k)=h5read(filename,varname);
 %     varname=['/omega_z/' timename];
 %     omega_z(:,k)=h5read(filename,varname);
-%     for n=1:N_TH
-%         varname=['/thme' num2str(n,'%2.2d') '/' timename];  % MEAN BUOYANCY
-%         thme(:,k)=h5read(filename,varname);
+    varname=['/epsilon/' timename];             % DISSIPATION RATE
+    epsilon(:,k)=h5read(tkefilename,varname);
+    for n=1:N_TH
+        varname=['/thme' num2str(n,'%2.2d') '/' timename];  % MEAN BUOYANCY
+        thme(:,k,n)=h5read(filename,varname);
 %         varname=['/dthdy' num2str(n,'%2.2d') '/' timename]; % MEAN BUOYANCY GRADIENTS
-%         dthdy(:,k)=h5read(filename,varname);
+%         dthdy(:,k,n)=h5read(filename,varname);
 %         varname=['/thrms' num2str(n,'%2.2d') '/' timename]; % RMS BUOYANCY
-%         thrms(:,k)=h5read(filename,varname);
-%         varname=['/thv' num2str(n,'%2.2d') '/' timename];
-%         thv(:,k)=h5read(filename,varname);
+%         thrms(:,k,n)=h5read(filename,varname);
+        varname=['/thv' num2str(n,'%2.2d') '/' timename];
+        thv(:,k,n)=h5read(filename,varname);
 %         varname=['/pe_diss' num2str(n,'%2.2d') '/' timename]; % POTENTIAL ENERGY DISSIPATION
-%         pe_diss(:,k)=h5read(filename,varname);
-%     end
+%         pe_diss(:,k,n)=h5read(filename,varname);
+    end
 end
 
 % Compute secondary quantities
@@ -235,3 +245,38 @@ end
 thv_int=trapz(gyf,thv,1);
 thrms_int=trapz(gyf,thrms,1);
 
+
+if isfile(buoyfilename)
+    for i=1:nk
+        if i<10
+            binname=['/bins/000' num2str(i)];
+            dbinname=['/dbins/000' num2str(i)];
+            countname=['/counts/000' num2str(i)];
+        elseif (i>=10)&&(i<100)
+            binname=['/bins/00' num2str(i)];
+            dbinname=['/dbins/00' num2str(i)];
+            countname=['/counts/00' num2str(i)];  
+        elseif (i>=100)&&(i<1000)
+            binname=['/bins/0' num2str(i)];
+            dbinname=['/dbins/0' num2str(i)];
+            countname=['/counts/0' num2str(i)]; 
+        else
+            binname=['/bins/' num2str(i)];
+            dbinname=['/dbins/' num2str(i)];
+            countname=['/counts/' num2str(i)];        
+        end
+        
+    
+        bins=h5read(buoyfilename,binname);
+        dbins=h5read(buoyfilename,dbinname);
+        counts=h5read(buoyfilename,countname);
+        time(i)=h5readatt(buoyfilename,binname,'Time');
+        
+        binval=bins+dbins/2;
+        
+        normalization_factor=trapz(binval,counts);
+        buoyancy_pdf(:,i)=counts/normalization_factor;
+    end
+end
+
+% figure;plot(binval,buoyancy_pdf(:,1),binval,buoyancy_pdf(:,end));
